@@ -18,8 +18,10 @@ var coyote_timer: float = 0.0
 var jump_buffer_timer: float = 0.0
 var last_safe_position: Vector2
 
+const StickFigure = preload("res://player/stick_figure.gd")
+
 @onready var pixel_art_visual: Node2D = $PixelArtVisual
-@onready var stick_figure_visual: Node2D = $StickFigureVisual
+@onready var stick_figure_visual: StickFigure = $StickFigureVisual
 
 func _ready() -> void:
 	last_safe_position = global_position
@@ -62,6 +64,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y *= 0.5
 
 	move_and_slide()
+	stick_figure_visual.set_motion(velocity, is_on_floor(), facing_direction)
 
 	if global_position.y > last_safe_position.y + FALL_RESET_MARGIN:
 		global_position = last_safe_position
