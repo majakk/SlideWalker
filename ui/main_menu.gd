@@ -54,7 +54,11 @@ func _ready() -> void:
 	card.add_child(col)
 
 	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 10)
 	title_row.add_child(_label("SlideWalker", 36, INK))
+	var version_label := _label("v" + str(ProjectSettings.get_setting("application/config/version", "")), 14, MUTED)
+	version_label.size_flags_vertical = Control.SIZE_SHRINK_END
+	title_row.add_child(version_label)
 	var title_spacer := Control.new()
 	title_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_row.add_child(title_spacer)
