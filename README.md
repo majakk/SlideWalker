@@ -26,7 +26,7 @@ parsing — `.pptx` files are read directly with Godot's built-in `ZIPReader`/`X
   top of the tallest slide.
 - **A completability guarantee.** Every course has a solid floor (or, in climb/drop, a floor per
   slide) underneath the content, so a missed jump is never a dead end.
-- **Two player styles** — a procedurally animated xkcd-style stick figure, or the classic
+- **Two player styles** — a procedurally animated stick figure, or the classic
   Brackeys pixel-art knight — both with run, jump, double-jump, wave, and skid/landing dust.
 - **Two camera modes** — frame one slide at a time with a pan on transitions, or scroll seamlessly
   with the player.
@@ -73,6 +73,7 @@ The pixel-art knight is from
 (sprite by analogStudios_), licensed CC0. See
 [`assets/brackeys/LICENSE_AND_CREDITS.txt`](assets/brackeys/LICENSE_AND_CREDITS.txt) for details,
 including the two wave frames added for this project.
+Special thanks to Ruken Gül Nazlican who inspired me to test this idea.
 
 ---
 
