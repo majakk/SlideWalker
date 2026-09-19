@@ -33,11 +33,13 @@ var _was_skidding: bool = false
 var _was_on_floor: bool = true
 var _fall_speed: float = 0.0
 
-const StickFigure = preload("res://player/stick_figure.gd")
 const DustPuff = preload("res://player/dust_puff.gd")
 
 @onready var pixel_art_visual: Node2D = $PixelArtVisual
-@onready var stick_figure_visual: StickFigure = $StickFigureVisual
+@onready var stick_figure_visual: Node2D = $StickFigureVisual
+## Whichever visual is active; both implement set_motion / play_air_jump /
+## play_wave.
+var _visual: Node2D
 
 func _ready() -> void:
 	last_safe_position = global_position
@@ -50,6 +52,7 @@ func _apply_visual_style() -> void:
 	var use_stick_figure: bool = GameSettings.player_style == GameSettings.PlayerStyle.STICK_FIGURE
 	stick_figure_visual.visible = use_stick_figure
 	pixel_art_visual.visible = not use_stick_figure
+	_visual = stick_figure_visual if use_stick_figure else pixel_art_visual
 
 func _physics_process(delta: float) -> void:
 	var profile = JumpPhysics.profile
@@ -93,13 +96,13 @@ func _physics_process(delta: float) -> void:
 		velocity.y = profile.jump_velocity * profile.air_jump_strength
 		air_jumps_left -= 1
 		jump_buffer_timer = 0.0
-		stick_figure_visual.play_air_jump()
+		_visual.play_air_jump()
 
 	if Input.is_action_just_released("jump") and velocity.y < 0.0:
 		velocity.y *= 0.5
 
 	if Input.is_action_just_pressed("wave"):
-		stick_figure_visual.play_wave()
+		_visual.play_wave()
 
 	# Sharp turn at speed: still sliding the old way while steering the new.
 	var skidding: bool = is_on_floor() and input_dir != 0.0 \
@@ -114,7 +117,7 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and not _was_on_floor and _fall_speed > LANDING_DUST_SPEED:
 		_spawn_dust(0.0, 2)
 	_was_on_floor = is_on_floor()
-	stick_figure_visual.set_motion(velocity, is_on_floor(), facing_direction, skidding)
+	_visual.set_motion(velocity, is_on_floor(), facing_direction, skidding)
 
 	if global_position.y > last_safe_position.y + FALL_RESET_MARGIN:
 		global_position = last_safe_position

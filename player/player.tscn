@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://player/player.gd" id="1_script"]
 [ext_resource type="Script" path="res://player/stick_figure.gd" id="2_stick"]
 [ext_resource type="Shader" path="res://player/stick_figure_contrast.gdshader" id="3_contrast"]
+[ext_resource type="Script" path="res://player/pixel_knight.gd" id="4_knight"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_contrast"]
 shader = ExtResource("3_contrast")
@@ -18,10 +19,9 @@ script = ExtResource("1_script")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CapsuleShape2D_1")
 
-[node name="PixelArtVisual" type="Polygon2D" parent="."]
+[node name="PixelArtVisual" type="Node2D" parent="."]
 visible = false
-color = Color(0.95, 0.55, 0.15, 1)
-polygon = PackedVector2Array(-10, -24, 10, -24, 10, 24, -10, 24)
+script = ExtResource("4_knight")
 
 [node name="StickFigureVisual" type="Node2D" parent="."]
 visible = false

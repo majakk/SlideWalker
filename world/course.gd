@@ -30,6 +30,9 @@ func _ready() -> void:
 		GameSettings.course_layout = int(args["mode"]) as GameSettings.CourseLayout
 	if args.has("seamless"):
 		GameSettings.camera_mode = GameSettings.CameraMode.SEAMLESS
+	if args.has("pixel"):
+		GameSettings.player_style = GameSettings.PlayerStyle.PIXEL_ART
+		player._apply_visual_style()
 
 	var deck_path: String = GameSettings.deck_path
 	if deck_path == "":
