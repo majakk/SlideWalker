@@ -49,6 +49,26 @@ parsing — `.pptx` files are read directly with Godot's built-in `ZIPReader`/`X
 
 ## Running it
 
+### From a standalone build
+
+Build Linux, Windows and macOS binaries with:
+```
+tools/export_all.sh
+```
+(needs the Godot export templates installed once — see the comment at the top of that script).
+This produces `dist/SlideWalker-linux-x86_64.zip`, `dist/SlideWalker-windows-x86_64.zip` and
+`dist/SlideWalker-macos.zip`.
+
+These builds aren't code-signed. On first launch:
+- **Windows** shows a "Windows protected your PC" SmartScreen warning — click **More info**, then
+  **Run anyway**.
+- **macOS** refuses to open it as "from an unidentified developer" — right-click (or Control-click)
+  the app and choose **Open**, then confirm. If that doesn't work, clear the quarantine flag:
+  `xattr -cr SlideWalker.app`.
+- **Linux** needs the executable bit set: `chmod +x SlideWalker.x86_64`.
+
+### From source
+
 1. Install [Godot 4.7](https://godotengine.org/download) (or newer, same major version).
 2. Open this folder as a project in the Godot editor, or run it from the command line:
    ```
