@@ -1,19 +1,23 @@
 extends Node2D
-## Cartoon dust "wind": gusts drawn as chains of connected half-circle
-## bumps (a scalloped line) that sweep outward from the feet and curl
-## upward at the end. Each gust unrolls from the feet, then disappears from
-## its tail. Spawned on sharp turns (skids) and hard landings; uses the
+## Cartoon dust "wind": gusts drawn as chains of connected half-circle bumps
+## (a scalloped line), emitted from the feet: each gust bursts outward along
+## the ground, growing as it travels, with a gentle curl at its outer end,
+## and fades out. Spawned on sharp turns (skids) and hard landings; uses the
 ## stick figure's contrast shader so it turns white on dark slides.
 
-const LIFE := 0.55
+const LIFE := 0.5
 const INK := Color(0.08, 0.08, 0.08)
 const LINE_WIDTH := 2.0
 const PATH_STEPS := 30
-## Path steps per half-circle bump (5 big puffy bumps per gust).
+## Path steps per half-circle bump (5 puffy bumps per gust).
 const STEPS_PER_BUMP := 6
+## How far the gust's inner end travels out from the feet over its life.
+const TRAVEL_PX := 34.0
+## Gust length at birth, as a fraction of its full length.
+const BIRTH_LENGTH := 0.3
 
-## Each gust: {"side": +1/-1, "length", "lift" (start angle up from the
-## ground, rad), "curl" (how far the end curls up, rad), "y" offset}
+## Each gust: {"side": +1/-1, "length", "lift" (angle up from the ground,
+## rad), "curl" (extra upward bend at the outer end, rad), "y" offset}
 var _gusts: Array[Dictionary] = []
 var _t: float = 0.0
 
@@ -24,10 +28,10 @@ func setup(direction: float, count: int = 2) -> void:
 		var side: float = direction if direction != 0.0 else (1.0 if i % 2 == 0 else -1.0)
 		_gusts.append({
 			"side": side,
-			"length": randf_range(52.0, 68.0) * (0.8 if direction == 0.0 else 1.0),
-			"lift": randf_range(0.05, 0.25) + i * 0.12,
-			"curl": randf_range(2.2, 3.0),
-			"y": -i * 5.0,
+			"length": randf_range(46.0, 60.0) * (0.85 if direction == 0.0 else 1.0 - 0.3 * i),
+			"lift": randf_range(0.04, 0.14) + (i * 0.1 if direction != 0.0 else 0.0),
+			"curl": randf_range(0.7, 1.1),
+			"y": -i * 6.0 if direction != 0.0 else 0.0,
 		})
 
 func _process(delta: float) -> void:
@@ -39,43 +43,39 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var k: float = _t / LIFE
-	# Head unrolls quickly, the tail follows and eats the gust.
-	var head: float = 1.0 - pow(1.0 - clamp(k / 0.45, 0.0, 1.0), 2.0)
-	var tail: float = clamp((k - 0.35) / 0.65, 0.0, 1.0)
-	var color := Color(INK, 1.0 - pow(k, 3.0))
+	# Fast burst out of the feet that eases off, like a puff of air.
+	var burst: float = 1.0 - pow(1.0 - k, 3.0)
+	var color := Color(INK, 1.0 - pow(k, 2.5))
 	for gust in _gusts:
-		var points: PackedVector2Array = _gust_path(gust, k)
-		var first: int = int(tail * PATH_STEPS)
-		var last: int = int(head * PATH_STEPS)
-		var i: int = first
-		while i + STEPS_PER_BUMP <= last:
+		var points: PackedVector2Array = _gust_path(gust, burst)
+		var i: int = 0
+		while i + STEPS_PER_BUMP <= PATH_STEPS:
 			_bump(points[i], points[i + STEPS_PER_BUMP], float(gust.side), color)
 			i += STEPS_PER_BUMP
 
-## Path from the feet: outward and slightly up, heading bending upward and
-## back over its length into a curl. Drifts a little outward over time.
-func _gust_path(gust: Dictionary, k: float) -> PackedVector2Array:
-	var points := PackedVector2Array()
+## The gust at a given point of its burst: its inner end has moved out from
+## the feet and it has grown to full length; it runs outward along the
+## ground, rising slightly and curling up gently at the far end.
+func _gust_path(gust: Dictionary, burst: float) -> PackedVector2Array:
 	var side: float = gust.side
-	var pos := Vector2(side * (4.0 + k * 10.0), gust.y)
-	var step: float = gust.length / PATH_STEPS
-	points.append(pos)
+	var pos := Vector2(side * (3.0 + TRAVEL_PX * burst), gust.y - 2.0 * burst)
+	var step: float = gust.length * lerp(BIRTH_LENGTH, 1.0, burst) / PATH_STEPS
+	var points := PackedVector2Array([pos])
 	for i in range(PATH_STEPS):
 		var s: float = float(i) / PATH_STEPS
-		var heading: float = gust.lift + gust.curl * s * s
+		var heading: float = gust.lift + gust.curl * s * s * s
 		# Heading 0 = along the ground away from the feet; positive = upward.
-		pos += Vector2(cos(heading) * side, -sin(heading)) * step * (1.0 - 0.25 * s)
+		pos += Vector2(cos(heading) * side, -sin(heading)) * step
 		points.append(pos)
 	return points
 
-## Half-circle on chord a->b, bulging to the upper/outer side of the gust.
+## Half-circle on chord a->b, bulging to the upper side of the gust.
 func _bump(a: Vector2, b: Vector2, side: float, color: Color) -> void:
 	var center: Vector2 = (a + b) * 0.5
 	var radius: float = a.distance_to(b) * 0.5
 	if radius < 0.5:
 		return
 	var travel: Vector2 = b - a
-	# Upper side of travel: rotate the travel direction toward screen-up.
 	var outward: Vector2 = Vector2(travel.y, -travel.x) * side
 	var start: float = (a - center).angle()
 	var sweep: float = PI
