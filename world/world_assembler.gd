@@ -1,5 +1,4 @@
 extends RefCounted
-class_name WorldAssembler
 ## Instantiates a CourseModel.Layout as collision. Content ledges are
 ## invisible - the slides themselves are what you see and stand on - with
 ## an optional debug overlay. Stage areas are drawn under the slides, helper

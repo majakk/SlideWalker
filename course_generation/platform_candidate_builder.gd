@@ -1,5 +1,4 @@
 extends RefCounted
-class_name PlatformCandidateBuilder
 ## Turns a slide's walkable rectangles (slide-local presentation px) into
 ## platform candidates: each rectangle's top edge is a walkable segment.
 ## Near-coincident overlapping edges merge so dense slides don't produce

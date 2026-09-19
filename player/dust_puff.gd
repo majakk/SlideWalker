@@ -63,7 +63,7 @@ func _draw() -> void:
 		var fade: float = pow(local, 2.5)
 		var color := Color(INK, 1.0 - fade)
 		var points: PackedVector2Array = _front_arc(front.side, radius, front.span)
-		var per_bump: int = ARC_STEPS / (PIXEL_BUMPS if pixel_size > 0.0 else BUMPS)
+		var per_bump: int = floori(float(ARC_STEPS) / (PIXEL_BUMPS if pixel_size > 0.0 else BUMPS))
 		var i: int = 0
 		while i + per_bump <= ARC_STEPS:
 			if pixel_size > 0.0:

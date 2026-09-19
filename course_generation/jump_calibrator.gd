@@ -1,5 +1,4 @@
 extends RefCounted
-class_name JumpCalibrator
 ## The platformer adapts to the deck: slides are shown at presentation size,
 ## so the jump is tuned to the deck's content instead of shrinking slides.
 ## Picks the smallest apex where (a) the double jump reaches every ledge

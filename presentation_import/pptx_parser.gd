@@ -1,5 +1,4 @@
 extends RefCounted
-class_name PptxParser
 ## Parses a .pptx (OOXML) file into a fully resolved PresentationModel.SlideDeck
 ## using only Godot's built-in ZIPReader/XMLParser.
 ##

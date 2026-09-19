@@ -1,5 +1,4 @@
 extends RefCounted
-class_name PresentationModel
 ## Format-agnostic intermediate representation. pptx_parser.gd and (later)
 ## odp_parser.gd both produce a SlideDeck of this shape; course_generation/
 ## and world/ never know which source format was loaded. Everything here is

@@ -1,5 +1,4 @@
 extends RefCounted
-class_name CourseGenerator
 ## Orchestrator. Slides are shown at presentation size and the platformer
 ## adapts to them:
 ##   deck -> presentation scale -> slide placement (per mode) -> walkable

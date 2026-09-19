@@ -1,5 +1,4 @@
 extends RefCounted
-class_name CourseModel
 ## Output of course generation: world-space platforms plus the slide frames
 ## they belong to. world_assembler.gd turns platforms into collision;
 ## slide_content_renderer.gd draws the slides into the slide frames.

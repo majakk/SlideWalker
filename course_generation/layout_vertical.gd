@@ -1,5 +1,4 @@
 extends RefCounted
-class_name LayoutVertical
 ## Slides stacked vertically at presentation scale.
 ##
 ## CLIMB: slide 1 at the bottom; climb upward. Each slide's bottom edge is a

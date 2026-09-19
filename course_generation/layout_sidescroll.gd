@@ -1,5 +1,4 @@
 extends RefCounted
-class_name LayoutSidescroll
 ## Places slides left-to-right at presentation scale, bottoms aligned on one
 ## continuous floor (the completability guarantee). The gap between slides
 ## is floor-only "stage", like the space between projected slides.

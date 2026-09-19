@@ -1,5 +1,4 @@
 extends RefCounted
-class_name LayoutSpiral
 ## Prezi-style "big canvas": slides on a 2D grid in a square spiral winding
 ## outward from slide 1 in the middle - right, up, left, left, down, down,
 ## right x3, up x3, ... Every grid row shares one floor across the whole

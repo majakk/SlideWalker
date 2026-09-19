@@ -1,5 +1,4 @@
 extends RefCounted
-class_name Reachability
 ## Jump-chain reachability over a course's platforms: which platforms can be
 ## reached from the start by chaining jumps (dropping down is always fine).
 

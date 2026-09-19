@@ -1,5 +1,4 @@
 extends RefCounted
-class_name ZipXmlUtils
 ## Shared low-level helpers so pptx_parser.gd and odp_parser.gd work against
 ## ordinary recursive tree structures instead of raw XMLParser streaming
 ## state. Both .pptx and .odp are zip archives of XML, so this is the one
