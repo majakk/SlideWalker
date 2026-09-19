@@ -16,6 +16,7 @@ const INK := Color(0.12, 0.13, 0.15)
 const MUTED := Color(0.45, 0.48, 0.53)
 const ACCENT := Color(0.18, 0.44, 0.85)
 const COFFEE_URL := "https://buymeacoffee.com/mattiasjac9"
+const STICKMAN_ICON := preload("res://assets/icons/stickman_icon.png")
 
 ## Set before adding to the tree when shown over a running presentation.
 var in_session: bool = false
@@ -52,7 +53,21 @@ func _ready() -> void:
 	col.custom_minimum_size = Vector2(520, 0)
 	card.add_child(col)
 
-	col.add_child(_label("SlideWalker", 36, INK))
+	var title_row := HBoxContainer.new()
+	title_row.add_child(_label("SlideWalker", 36, INK))
+	var title_spacer := Control.new()
+	title_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(title_spacer)
+	var mascot := TextureRect.new()
+	mascot.texture = STICKMAN_ICON
+	mascot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mascot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	mascot.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	mascot.custom_minimum_size = Vector2(44, 44)
+	mascot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	mascot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	title_row.add_child(mascot)
+	col.add_child(title_row)
 	col.add_child(_label("Present your slides by walking through them.", 16, MUTED))
 	col.add_child(HSeparator.new())
 
