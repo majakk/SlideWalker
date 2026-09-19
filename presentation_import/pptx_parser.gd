@@ -72,18 +72,21 @@ static func parse(path: String) -> PresentationModel.SlideDeck:
 	doc.canvas = _get_slide_size(pres.tree)
 	doc.default_text_style = ZipXmlUtils.find_first(pres.tree, "p:defaultTextStyle")
 
-	var idx: int = 0
 	for target in _get_ordered_slide_targets(pres):
-		idx += 1
 		var ctx := SlideContext.new()
 		ctx.doc = doc
 		ctx.slide = _part(doc, target)
 		if ctx.slide.tree.is_empty():
 			continue
+		# Slides an author marked "Hide Slide" are skipped by an actual
+		# slideshow/presenter view, so they're skipped here too - the deck's
+		# slide numbers should match what a viewer would actually reach.
+		if ctx.slide.tree.get("attrs", {}).get("show", "1") == "0":
+			continue
 		ctx.layout = _part(doc, ctx.slide.target_of_type("slideLayout"))
 		ctx.master = _part(doc, ctx.layout.target_of_type("slideMaster"))
 		ctx.theme = _theme_for(doc, ctx.master)
-		deck.slides.append(_parse_slide(ctx, idx))
+		deck.slides.append(_parse_slide(ctx, deck.slides.size() + 1))
 
 	doc.zip.close()
 	return deck
