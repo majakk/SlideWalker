@@ -15,6 +15,11 @@ func _ready() -> void:
 	_setup_action("jump", [
 		_key(KEY_SPACE), _joy_button(JOY_BUTTON_A),
 	])
+	# Activates slide media (video, GIF, click-to-reveal builds) near the
+	# player. X rather than A, which is already jump.
+	_setup_action("interact", [
+		_key(KEY_E), _joy_button(JOY_BUTTON_X),
+	])
 
 func _setup_action(action_name: String, events: Array) -> void:
 	if not InputMap.has_action(action_name):
