@@ -1,0 +1,11 @@
+# Godot 4+ editor/import cache
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# Common editor/OS cruft
+.DS_Store
+
+# Local test decks (large binaries, not project source)
+/presentations_testing/

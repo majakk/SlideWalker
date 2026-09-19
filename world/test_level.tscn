@@ -1,0 +1,113 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="PackedScene" path="res://player/player.tscn" id="1_player"]
+
+[sub_resource type="RectangleShape2D" id="Floor"]
+size = Vector2(2300, 100)
+
+[sub_resource type="RectangleShape2D" id="LongJump_A"]
+size = Vector2(140, 20)
+
+[sub_resource type="RectangleShape2D" id="LongJump_B"]
+size = Vector2(140, 20)
+
+[sub_resource type="RectangleShape2D" id="Platform_Small"]
+size = Vector2(120, 20)
+
+[sub_resource type="RectangleShape2D" id="Platform_Small2"]
+size = Vector2(120, 20)
+
+[sub_resource type="RectangleShape2D" id="Platform_Small3"]
+size = Vector2(120, 20)
+
+[node name="TestLevel" type="Node2D"]
+
+[node name="Floor" type="StaticBody2D" parent="."]
+position = Vector2(1050, 700)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor"]
+shape = SubResource("Floor")
+
+[node name="Visual" type="ColorRect" parent="Floor"]
+offset_left = -1150.0
+offset_top = -50.0
+offset_right = 1150.0
+offset_bottom = 50.0
+color = Color(0.36, 0.25, 0.2, 1)
+
+[node name="LongJumpA" type="StaticBody2D" parent="."]
+position = Vector2(500, 630)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LongJumpA"]
+shape = SubResource("LongJump_A")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="LongJumpA"]
+offset_left = -70.0
+offset_top = -10.0
+offset_right = 70.0
+offset_bottom = 10.0
+color = Color(0.55, 0.38, 0.28, 1)
+
+[node name="LongJumpB" type="StaticBody2D" parent="."]
+position = Vector2(900, 630)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LongJumpB"]
+shape = SubResource("LongJump_B")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="LongJumpB"]
+offset_left = -70.0
+offset_top = -10.0
+offset_right = 70.0
+offset_bottom = 10.0
+color = Color(0.55, 0.38, 0.28, 1)
+
+[node name="Platform1" type="StaticBody2D" parent="."]
+position = Vector2(1110, 590)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Platform1"]
+shape = SubResource("Platform_Small")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Platform1"]
+offset_left = -60.0
+offset_top = -10.0
+offset_right = 60.0
+offset_bottom = 10.0
+color = Color(0.55, 0.38, 0.28, 1)
+
+[node name="Platform2" type="StaticBody2D" parent="."]
+position = Vector2(1310, 520)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Platform2"]
+shape = SubResource("Platform_Small2")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Platform2"]
+offset_left = -60.0
+offset_top = -10.0
+offset_right = 60.0
+offset_bottom = 10.0
+color = Color(0.55, 0.38, 0.28, 1)
+
+[node name="Platform3" type="StaticBody2D" parent="."]
+position = Vector2(1530, 400)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Platform3"]
+shape = SubResource("Platform_Small3")
+one_way_collision = true
+
+[node name="Visual" type="ColorRect" parent="Platform3"]
+offset_left = -60.0
+offset_top = -10.0
+offset_right = 60.0
+offset_bottom = 10.0
+color = Color(0.55, 0.38, 0.28, 1)
+
+[node name="Player" parent="." instance=ExtResource("1_player")]
+position = Vector2(0, 600)
+
+[node name="Camera2D" type="Camera2D" parent="Player"]
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
