@@ -2,6 +2,8 @@
 
 **Present your slides by walking through them.**
 
+**[⬇ Download the latest release](https://github.com/majakk/SlideWalker/releases/latest)** — Windows, macOS and Linux.
+
 SlideWalker turns a PowerPoint deck into a 2D platformer. Open a `.pptx` file, pick a course
 type, and your slides become the level: every text line, title and image is a real, walkable
 ledge, laid out exactly as the deck's author placed it. Giving the presentation *is* walking,
