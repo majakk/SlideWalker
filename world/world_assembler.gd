@@ -13,6 +13,12 @@ const LEDGE_THICKNESS_PX: float = 12.0
 const FLOOR_THICKNESS_PX: float = 200.0
 const WALL_HEIGHT_PX: float = 4000.0
 const DEBUG_COLOR := Color(1.0, 0.2, 0.5, 0.85)
+const SLIDE_NUMBER_COLOR := Color(0.72, 0.76, 0.82)
+const SLIDE_NUMBER_SIZE: int = 20
+## Physics layers: floor and walls on 1, ledges on 2 (the player can drop
+## through ledges by masking out layer 2, never through the floor).
+const FLOOR_LAYER_BITS: int = 1
+const LEDGE_LAYER_BITS: int = 2
 
 ## Returns the debug overlay node (hidden) so callers can toggle it.
 static func assemble(parent: Node2D, layout: CourseModel.Layout) -> Node2D:
@@ -25,6 +31,7 @@ static func assemble(parent: Node2D, layout: CourseModel.Layout) -> Node2D:
 		var is_floor: bool = platform.kind == CourseModel.Platform.Kind.FLOOR
 		var thickness: float = FLOOR_THICKNESS_PX if is_floor else LEDGE_THICKNESS_PX
 		var body := StaticBody2D.new()
+		body.collision_layer = FLOOR_LAYER_BITS if is_floor else LEDGE_LAYER_BITS
 		body.position = Vector2(platform.x + platform.width * 0.5, platform.y + thickness * 0.5)
 		var shape := RectangleShape2D.new()
 		shape.size = Vector2(platform.width, thickness)
@@ -53,6 +60,19 @@ static func assemble(parent: Node2D, layout: CourseModel.Layout) -> Node2D:
 	edge.size = Vector2(layout.world_right - layout.world_left, 3.0)
 	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(edge)
+
+	# Slide numbers, centered under each slide in the stage strip.
+	for i in range(layout.slide_rects.size()):
+		var r: Rect2 = layout.slide_rects[i]
+		var number := Label.new()
+		number.text = "%d / %d" % [i + 1, layout.slide_rects.size()]
+		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		number.add_theme_font_size_override("font_size", SLIDE_NUMBER_SIZE)
+		number.add_theme_color_override("font_color", SLIDE_NUMBER_COLOR)
+		number.position = Vector2(r.position.x, 10.0)
+		number.size = Vector2(r.size.x, SLIDE_NUMBER_SIZE + 6)
+		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		parent.add_child(number)
 
 	for x in [layout.world_left, layout.world_right]:
 		var wall := StaticBody2D.new()

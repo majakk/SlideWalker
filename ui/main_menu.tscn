@@ -60,3 +60,9 @@ unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(180, 60)
 text = "Stick Figure"
+
+[node name="SeamlessToggle" type="CheckButton" parent="CenterContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+text = "Seamless scrolling (instead of slide by slide)"

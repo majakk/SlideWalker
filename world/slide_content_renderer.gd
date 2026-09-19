@@ -45,7 +45,7 @@ func render_slide(parent: Node, manifest: PresentationModel.SlideManifest, rect:
 	var walkables: Array[Rect2] = []
 	for shape in manifest.shapes:
 		var box := Rect2(Vector2(shape.x, shape.y) * px_per_cm, Vector2(shape.w, shape.h) * px_per_cm)
-		var walkable: Rect2 = box
+		var shape_walkables: Array[Rect2] = [box]
 
 		if shape.type == PresentationModel.ShapeRect.Type.IMAGE:
 			_add_rotated(card, _image_view(shape, box), shape, box)
@@ -66,12 +66,15 @@ func render_slide(parent: Node, manifest: PresentationModel.SlideManifest, rect:
 				var text := TextBoxView.new()
 				_add_rotated(card, text, shape, box)
 				text.build(shape, px_per_cm)
-				# Unframed text: stand on the glyphs, not the invisible frame.
+				# Unframed text: every rendered line is a ledge; the invisible
+				# frame itself is not.
 				if not has_frame:
-					walkable = Rect2(box.position + text.visible_text_rect.position, text.visible_text_rect.size)
+					shape_walkables.clear()
+					for line in text.line_rects:
+						shape_walkables.append(Rect2(box.position + line.position, line.size))
 
-		if CourseGenerator.is_platform_shape(shape) and walkable.size.x > 0.0:
-			walkables.append(walkable)
+		if CourseGenerator.is_platform_shape(shape):
+			walkables.append_array(shape_walkables)
 	return walkables
 
 func _add_rotated(card: Control, view: Control, shape: PresentationModel.ShapeRect, box: Rect2) -> void:

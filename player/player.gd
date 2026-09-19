@@ -1,13 +1,18 @@
 extends CharacterBody2D
-## M0 movement controller: run + jump with coyote time and jump buffering.
-## Ledge-grab/mantle and the animation state machine land in later
-## milestones (M4/M5) — this establishes and tunes the raw movement feel
-## that everything else, including course-gen reachability, is built on.
+## Movement controller: run, jump (coyote time, buffering, variable height),
+## a double jump, and dropping down through the ledge you're standing on.
+## Physics values come from JumpPhysics.profile, which course setup tunes
+## to the loaded deck.
 
 const ACCEL: float = 2500.0
 const FRICTION: float = 3000.0
 const COYOTE_TIME: float = 0.1
 const JUMP_BUFFER_TIME: float = 0.1
+## Ledges live on this physics layer (the stage floor and walls on layer 1),
+## so dropping down can never fall through the floor.
+const LEDGE_LAYER: int = 2
+const DROP_THROUGH_TIME: float = 0.22
+const DROP_NUDGE_SPEED: float = 120.0
 ## Course generation guarantees a continuous floor under every slide, so
 ## falling below the last solid ground should never actually happen — this
 ## is a defensive backstop, not a mechanic to design levels around.
@@ -16,6 +21,8 @@ const FALL_RESET_MARGIN: float = 800.0
 var facing_direction: int = 1
 var coyote_timer: float = 0.0
 var jump_buffer_timer: float = 0.0
+var air_jumps_left: int = 0
+var drop_timer: float = 0.0
 var last_safe_position: Vector2
 
 const StickFigure = preload("res://player/stick_figure.gd")
@@ -36,29 +43,48 @@ func _apply_visual_style() -> void:
 	pixel_art_visual.visible = not use_stick_figure
 
 func _physics_process(delta: float) -> void:
+	var profile = JumpPhysics.profile
 	if is_on_floor():
 		coyote_timer = COYOTE_TIME
+		air_jumps_left = profile.air_jumps
 		last_safe_position = global_position
 	else:
 		coyote_timer = max(coyote_timer - delta, 0.0)
-		velocity.y = min(velocity.y + JumpPhysics.profile.gravity * delta, JumpPhysics.profile.max_fall_speed)
+		velocity.y = min(velocity.y + profile.gravity * delta, profile.max_fall_speed)
 
-	if Input.is_action_just_pressed("jump"):
+	if drop_timer > 0.0:
+		drop_timer -= delta
+		if drop_timer <= 0.0:
+			set_collision_mask_value(LEDGE_LAYER, true)
+
+	var jump_pressed: bool = Input.is_action_just_pressed("jump")
+	if jump_pressed:
 		jump_buffer_timer = JUMP_BUFFER_TIME
 	else:
 		jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
 
 	var input_dir: float = Input.get_axis("move_left", "move_right")
 	if input_dir != 0.0:
-		velocity.x = move_toward(velocity.x, input_dir * JumpPhysics.profile.run_speed, ACCEL * delta)
+		velocity.x = move_toward(velocity.x, input_dir * profile.run_speed, ACCEL * delta)
 		facing_direction = sign(input_dir)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)
 
-	if jump_buffer_timer > 0.0 and coyote_timer > 0.0:
-		velocity.y = JumpPhysics.profile.jump_velocity
+	if Input.is_action_just_pressed("move_down") and is_on_floor():
+		# Only ledges stop colliding; on the stage floor this does nothing.
+		set_collision_mask_value(LEDGE_LAYER, false)
+		drop_timer = DROP_THROUGH_TIME
+		velocity.y = DROP_NUDGE_SPEED
+		coyote_timer = 0.0
+	elif jump_buffer_timer > 0.0 and coyote_timer > 0.0:
+		velocity.y = profile.jump_velocity
 		coyote_timer = 0.0
 		jump_buffer_timer = 0.0
+	elif jump_pressed and air_jumps_left > 0:
+		velocity.y = profile.jump_velocity * profile.air_jump_strength
+		air_jumps_left -= 1
+		jump_buffer_timer = 0.0
+		stick_figure_visual.play_air_jump()
 
 	if Input.is_action_just_released("jump") and velocity.y < 0.0:
 		velocity.y *= 0.5

@@ -1,7 +1,7 @@
 extends Node2D
 ## Playtest harness until the real deck picker (M9): renders a deck from
 ## presentations_testing/ as a side-scrolling course. Tab cycles decks,
-## F3 toggles the ledge debug overlay.
+## C toggles per-slide / seamless camera, F3 toggles the ledge overlay.
 
 const PptxParser = preload("res://presentation_import/pptx_parser.gd")
 const CourseGenerator = preload("res://course_generation/course_generator.gd")
@@ -56,6 +56,9 @@ func _ready() -> void:
 	camera.snap_to_target()
 	if args.has("debug"):
 		_debug_overlay.visible = true
+	if args.has("seamless"):
+		GameSettings.camera_mode = GameSettings.CameraMode.SEAMLESS
+		camera.snap_to_target()
 
 	print("%s: %d slides at %.1f px/cm, %d ledges, jump apex %.0fpx, built in %d ms" % [
 		deck_path.get_file(), deck.slides.size(), px_per_cm, layout.platforms.size() - 1,
@@ -90,6 +93,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_TAB:
 				deck_index += 1
 				get_tree().reload_current_scene()
+			KEY_C:
+				GameSettings.camera_mode = GameSettings.CameraMode.SEAMLESS \
+					if GameSettings.camera_mode == GameSettings.CameraMode.PER_SLIDE \
+					else GameSettings.CameraMode.PER_SLIDE
 
 func _find_decks() -> Array[String]:
 	var out: Array[String] = []

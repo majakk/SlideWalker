@@ -26,6 +26,8 @@ const HIP_Y := FEET_Y - THIGH - SHIN
 const LEG_SWING := 0.6
 const ARM_SWING := 0.55
 const AIR_BLEND_RATE := 12.0
+## Double jump: a quick tucked forward flip.
+const FLIP_TIME := 0.38
 
 var _velocity := Vector2.ZERO
 var _on_floor := true
@@ -33,14 +35,20 @@ var _facing := 1
 var _phase := 0.0
 var _time := 0.0
 var _air := 0.0
+## 1 -> 0 over one flip; 0 when not flipping.
+var _flip := 0.0
 
 func set_motion(velocity: Vector2, on_floor: bool, facing: int) -> void:
 	_velocity = velocity
 	_on_floor = on_floor
 	_facing = facing
 
+func play_air_jump() -> void:
+	_flip = 1.0
+
 func _process(delta: float) -> void:
 	_time += delta
+	_flip = move_toward(_flip, 0.0, delta / FLIP_TIME)
 	var speed: float = abs(_velocity.x)
 	if _on_floor:
 		# Advance the gait so one half-cycle covers exactly one stride.
@@ -92,15 +100,29 @@ func _air_pose() -> Dictionary:
 	pose.bob = -2.0
 	return pose
 
+func _tuck_pose() -> Dictionary:
+	return {
+		"thigh_l": 1.9, "shin_l": -0.3, "thigh_r": 1.6, "shin_r": -0.5,
+		"arm_l": 1.4, "fore_l": 2.4, "arm_r": 1.1, "fore_r": 2.2,
+		"lean": 0.25, "bob": -6.0,
+	}
+
 func _dir(angle: float) -> Vector2:
 	return Vector2(sin(angle) * _facing, cos(angle))
 
 func _draw() -> void:
 	var ground: Dictionary = _ground_pose()
 	var air: Dictionary = _air_pose()
+	var tuck: Dictionary = _tuck_pose()
+	# Tucked for most of the flip, unfolding over its last stretch.
+	var tuck_amount: float = clamp(_flip * 3.0, 0.0, 1.0)
 	var pose := {}
 	for key in ground:
-		pose[key] = lerp(float(ground[key]), float(air[key]), _air)
+		var p: float = lerp(float(ground[key]), float(air[key]), _air)
+		pose[key] = lerp(p, float(tuck[key]), tuck_amount)
+
+	# Rotate the whole figure around its middle, forward in the facing direction.
+	draw_set_transform(Vector2.ZERO, TAU * (1.0 - _flip) * _facing if _flip > 0.0 else 0.0, Vector2.ONE)
 
 	var up := Vector2(sin(pose.lean) * _facing, -cos(pose.lean))
 	var hip := Vector2(0.0, HIP_Y + pose.bob)

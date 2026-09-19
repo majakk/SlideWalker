@@ -12,6 +12,12 @@ func _ready() -> void:
 		_key(KEY_D), _key(KEY_RIGHT),
 		_joy_axis(JOY_AXIS_LEFT_X, 1.0), _joy_button(JOY_BUTTON_DPAD_RIGHT),
 	])
+	# Drop down through the ledge you're standing on. Higher stick deadzone
+	# so a slightly-down stick while running doesn't drop you by accident.
+	_setup_action("move_down", [
+		_key(KEY_S), _key(KEY_DOWN),
+		_joy_axis(JOY_AXIS_LEFT_Y, 1.0), _joy_button(JOY_BUTTON_DPAD_DOWN),
+	], 0.6)
 	_setup_action("jump", [
 		_key(KEY_SPACE), _joy_button(JOY_BUTTON_A),
 	])
@@ -21,11 +27,12 @@ func _ready() -> void:
 		_key(KEY_E), _joy_button(JOY_BUTTON_X),
 	])
 
-func _setup_action(action_name: String, events: Array) -> void:
+func _setup_action(action_name: String, events: Array, deadzone: float = 0.2) -> void:
 	if not InputMap.has_action(action_name):
-		InputMap.add_action(action_name, 0.2)
+		InputMap.add_action(action_name, deadzone)
 	else:
 		InputMap.action_erase_events(action_name)
+		InputMap.action_set_deadzone(action_name, deadzone)
 	for event in events:
 		InputMap.action_add_event(action_name, event)
 

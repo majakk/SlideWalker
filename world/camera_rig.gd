@@ -42,4 +42,15 @@ func _update_framing() -> void:
 	var view: Vector2 = get_viewport_rect().size
 	var fit: float = min(view.x / region.size.x, view.y / region.size.y)
 	zoom = Vector2(fit, fit)
-	global_position = region.get_center()
+	if GameSettings.camera_mode == GameSettings.CameraMode.PER_SLIDE:
+		global_position = region.get_center()
+		return
+
+	# Seamless: same zoom and height, x follows the player, held back at the
+	# course ends so the view never runs past the first/last slide.
+	var half_view_w: float = view.x / fit * 0.5
+	var left: float = slide_rects[0].position.x + half_view_w - r.size.x * 0.03
+	var right: float = slide_rects[-1].end.x - half_view_w + r.size.x * 0.03
+	var x: float = target.global_position.x
+	x = clamp(x, left, right) if left <= right else (slide_rects[0].position.x + slide_rects[-1].end.x) * 0.5
+	global_position = Vector2(x, region.get_center().y)

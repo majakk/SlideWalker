@@ -36,6 +36,7 @@ offset_bottom = 50.0
 color = Color(0.36, 0.25, 0.2, 1)
 
 [node name="LongJumpA" type="StaticBody2D" parent="."]
+collision_layer = 2
 position = Vector2(500, 630)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="LongJumpA"]
@@ -50,6 +51,7 @@ offset_bottom = 10.0
 color = Color(0.55, 0.38, 0.28, 1)
 
 [node name="LongJumpB" type="StaticBody2D" parent="."]
+collision_layer = 2
 position = Vector2(900, 630)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="LongJumpB"]
@@ -64,6 +66,7 @@ offset_bottom = 10.0
 color = Color(0.55, 0.38, 0.28, 1)
 
 [node name="Platform1" type="StaticBody2D" parent="."]
+collision_layer = 2
 position = Vector2(1110, 590)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Platform1"]
@@ -78,6 +81,7 @@ offset_bottom = 10.0
 color = Color(0.55, 0.38, 0.28, 1)
 
 [node name="Platform2" type="StaticBody2D" parent="."]
+collision_layer = 2
 position = Vector2(1310, 520)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Platform2"]
@@ -92,6 +96,7 @@ offset_bottom = 10.0
 color = Color(0.55, 0.38, 0.28, 1)
 
 [node name="Platform3" type="StaticBody2D" parent="."]
+collision_layer = 2
 position = Vector2(1530, 400)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Platform3"]

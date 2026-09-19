@@ -4,9 +4,9 @@ extends Control
 ## space-before). Per-paragraph blocks are also the unit click-to-reveal
 ## builds (M3b) show one at a time.
 ##
-## After layout, visible_text_rect holds where the glyphs actually are, so
-## the walkable ledge sits on the text itself rather than on the (often
-## much larger) text frame.
+## After layout, line_rects holds every rendered (wrapped) line, from its
+## cap line down: each line of text - titles included - is a ledge you can
+## stand on, rather than the (often much larger) text frame.
 
 const PresentationModel = preload("res://presentation_import/presentation_model.gd")
 const FontCache = preload("res://world/font_cache.gd")
@@ -14,11 +14,11 @@ const FontCache = preload("res://world/font_cache.gd")
 const PT_TO_CM: float = 2.54 / 72.0
 ## PowerPoint's single line spacing is ~1.2x the font size.
 const PPT_LINE_HEIGHT: float = 1.2
-## Glyph tops (cap height) sit roughly this fraction of the font size below
-## the top of the line box.
-const CAP_TOP_FRACTION: float = 0.2
+## Cap height as a fraction of font size (Arial/Liberation Sans ~0.716).
+const CAP_HEIGHT_FRACTION: float = 0.72
 
-var visible_text_rect: Rect2 = Rect2()
+## In this view's local px.
+var line_rects: Array[Rect2] = []
 
 var _shape: PresentationModel.ShapeRect
 var _px_per_cm: float = 1.0
@@ -91,36 +91,34 @@ func layout_text() -> void:
 			offset = inner.size.y - total
 	_content.position = inner.position + Vector2(0.0, offset)
 
-	# Walkable ledge: cap line of the first visible paragraph, spanning the
-	# widest line of the block.
-	var left: float = INF
-	var right: float = -INF
-	var first_top: float = INF
+	# One ledge per rendered line, on its cap line, spanning the glyphs.
+	line_rects.clear()
 	for i in range(_blocks.size()):
 		var para: PresentationModel.Paragraph = _blocks[i]["para"]
-		var line_w: float = _natural_width(para)
-		if line_w <= 0.0:
+		if not _has_text(para):
 			continue
-		var indent_px: float = para.indent_cm * _px_per_cm
-		var avail: float = inner.size.x - indent_px
-		line_w = min(line_w, avail)
-		var x0: float = indent_px
-		match para.align:
-			"ctr":
-				x0 += (avail - line_w) * 0.5
-			"r":
-				x0 += avail - line_w
-		if para.bullet != "":
-			x0 = min(x0, indent_px + para.first_line_indent_cm * _px_per_cm)
-		left = min(left, x0)
-		right = max(right, x0 + line_w)
-		if first_top == INF:
-			first_top = tops[i] + _px(para.runs[0].size_pt) * CAP_TOP_FRACTION
-	if first_top == INF:
-		visible_text_rect = Rect2()
-		return
-	var origin: Vector2 = _content.position
-	visible_text_rect = Rect2(origin.x + left, origin.y + first_top, right - left, total - first_top)
+		var body: RichTextLabel = _blocks[i]["body"]
+		var first: PresentationModel.TextRun = para.runs[0]
+		var px: int = _px(first.size_pt)
+		var cap_drop: float = FontCache.get_font(first.font_family, first.bold, first.italic).get_ascent(px) \
+			- px * CAP_HEIGHT_FRACTION
+		var block_origin: Vector2 = _content.position + Vector2(body.position.x, tops[i])
+		for line in range(body.get_line_count()):
+			var w: float = body.get_line_width(line)
+			if w <= 0.0:
+				continue
+			var x0: float = 0.0
+			match para.align:
+				"ctr":
+					x0 = (body.size.x - w) * 0.5
+				"r":
+					x0 = body.size.x - w
+			if line == 0 and para.bullet != "":
+				var bullet_x: float = para.first_line_indent_cm * _px_per_cm
+				w += x0 - min(x0, bullet_x)
+				x0 = min(x0, bullet_x)
+			var top: float = body.get_line_offset(line) + cap_drop
+			line_rects.append(Rect2(block_origin + Vector2(x0, top), Vector2(w, body.get_line_height(line) - cap_drop)))
 
 func _fill(body: RichTextLabel, para: PresentationModel.Paragraph) -> void:
 	var first: PresentationModel.TextRun = para.runs[0]
@@ -159,21 +157,6 @@ func _fill(body: RichTextLabel, para: PresentationModel.Paragraph) -> void:
 		body.add_text(" ")
 		body.pop()
 	body.pop()
-
-## Unwrapped width of the paragraph's widest line.
-func _natural_width(para: PresentationModel.Paragraph) -> float:
-	var widest: float = 0.0
-	var line: float = 0.0
-	for run in para.runs:
-		var font: Font = FontCache.get_font(run.font_family, run.bold, run.italic)
-		var pieces: PackedStringArray = run.text.split("\n")
-		for j in range(pieces.size()):
-			if j > 0:
-				widest = max(widest, line)
-				line = 0.0
-			if pieces[j] != "":
-				line += font.get_string_size(pieces[j], HORIZONTAL_ALIGNMENT_LEFT, -1, _px(run.size_pt)).x
-	return max(widest, line) if (max(widest, line) > 0.0 and _has_text(para)) else 0.0
 
 func _has_text(para: PresentationModel.Paragraph) -> bool:
 	for run in para.runs:
