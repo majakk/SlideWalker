@@ -87,7 +87,7 @@ def main():
     # 1. Title slide: placeholders with no explicit <a:xfrm> on the slide -
     # positions inherit from the layout, exercising the parser's fallback.
     s = prs.slides.add_slide(prs.slide_layouts[TITLE_SLIDE])
-    s.shapes.title.text = "PlatformPresenter media test"
+    s.shapes.title.text = "SlideWalker media test"
     s.placeholders[1].text = "Video - GIF - click builds - groups - crops - links"
 
     # 2. Embedded MP4 video with poster frame.

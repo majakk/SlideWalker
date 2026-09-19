@@ -27,4 +27,4 @@ FONTS by Jayvee Enaguas - HarvettFox96 - (https://www.dafont.com/pixel-operator.
 
 MODIFICATIONS in this project (also CC0):
 knight_wave.png - two "wave" frames derived from the knight idle frame by
-PlatformPresenter (tools/make_knight_wave.py).
+SlideWalker (tools/make_knight_wave.py).

@@ -41,7 +41,7 @@ func _ready() -> void:
 	col.custom_minimum_size = Vector2(520, 0)
 	card.add_child(col)
 
-	col.add_child(_label("PlatformPresenter", 36, INK))
+	col.add_child(_label("SlideWalker", 36, INK))
 	col.add_child(_label("Present your slides by walking through them.", 16, MUTED))
 	col.add_child(HSeparator.new())
 
