@@ -28,6 +28,11 @@ const ARM_SWING := 0.55
 const AIR_BLEND_RATE := 12.0
 ## Double jump: a quick tucked forward flip.
 const FLIP_TIME := 0.38
+## Torso lean into the direction of travel at full speed (radians).
+const RUN_LEAN := 0.16
+const LEAN_RATE := 8.0
+const SKID_BLEND_RATE := 14.0
+const WAVE_TIME := 1.5
 
 var _velocity := Vector2.ZERO
 var _on_floor := true
@@ -37,11 +42,20 @@ var _time := 0.0
 var _air := 0.0
 ## 1 -> 0 over one flip; 0 when not flipping.
 var _flip := 0.0
+var _lean := 0.0
+var _skidding := false
+var _skid := 0.0
+## 1 -> 0 over one wave; 0 when not waving.
+var _wave := 0.0
 
-func set_motion(velocity: Vector2, on_floor: bool, facing: int) -> void:
+func set_motion(velocity: Vector2, on_floor: bool, facing: int, skidding: bool = false) -> void:
 	_velocity = velocity
 	_on_floor = on_floor
 	_facing = facing
+	_skidding = skidding
+
+func play_wave() -> void:
+	_wave = 1.0
 
 func play_air_jump() -> void:
 	_flip = 1.0
@@ -49,6 +63,10 @@ func play_air_jump() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	_flip = move_toward(_flip, 0.0, delta / FLIP_TIME)
+	_wave = move_toward(_wave, 0.0, delta / WAVE_TIME)
+	var run_amount: float = clamp(abs(_velocity.x) / JumpPhysics.profile.run_speed, 0.0, 1.0)
+	_lean = lerp(_lean, RUN_LEAN * run_amount if _on_floor else 0.0, 1.0 - exp(-LEAN_RATE * delta))
+	_skid = lerp(_skid, 1.0 if (_skidding and _on_floor) else 0.0, 1.0 - exp(-SKID_BLEND_RATE * delta))
 	var speed: float = abs(_velocity.x)
 	if _on_floor:
 		# Advance the gait so one half-cycle covers exactly one stride.
@@ -74,7 +92,7 @@ func _ground_pose() -> Dictionary:
 	pose.arm_r = s * ARM_SWING * amount - 0.15 * idle - breathe
 	pose.fore_l = pose.arm_l + 0.3 + 0.5 * amount
 	pose.fore_r = pose.arm_r + 0.3 + 0.5 * amount
-	pose.lean = 0.12 * amount
+	pose.lean = _lean
 
 	# Drop the hip so the lowest foot stays exactly on the ground.
 	var foot_l: float = THIGH * cos(pose.thigh_l) + SHIN * cos(pose.shin_l)
@@ -100,6 +118,19 @@ func _air_pose() -> Dictionary:
 	pose.bob = -2.0
 	return pose
 
+## Braking hard after a sudden turn: body already facing the new way and
+## leaning into it, front leg braced out, arms thrown back for balance.
+func _skid_pose() -> Dictionary:
+	var pose := {
+		"thigh_l": 0.55, "shin_l": 0.95, "thigh_r": -0.35, "shin_r": -0.15,
+		"arm_l": -1.1, "fore_l": -0.7, "arm_r": -0.8, "fore_r": -0.4,
+		"lean": 0.32,
+	}
+	var foot_l: float = THIGH * cos(pose.thigh_l) + SHIN * cos(pose.shin_l)
+	var foot_r: float = THIGH * cos(pose.thigh_r) + SHIN * cos(pose.shin_r)
+	pose.bob = (THIGH + SHIN) - max(foot_l, foot_r)
+	return pose
+
 func _tuck_pose() -> Dictionary:
 	return {
 		"thigh_l": 1.9, "shin_l": -0.3, "thigh_r": 1.6, "shin_r": -0.5,
@@ -113,13 +144,23 @@ func _dir(angle: float) -> Vector2:
 func _draw() -> void:
 	var ground: Dictionary = _ground_pose()
 	var air: Dictionary = _air_pose()
+	var skid: Dictionary = _skid_pose()
 	var tuck: Dictionary = _tuck_pose()
 	# Tucked for most of the flip, unfolding over its last stretch.
 	var tuck_amount: float = clamp(_flip * 3.0, 0.0, 1.0)
 	var pose := {}
 	for key in ground:
 		var p: float = lerp(float(ground[key]), float(air[key]), _air)
+		p = lerp(p, float(skid[key]), _skid)
 		pose[key] = lerp(p, float(tuck[key]), tuck_amount)
+
+	# Wave: raise the front arm and swing the forearm, easing in and out.
+	if _wave > 0.0:
+		var elapsed: float = (1.0 - _wave) * WAVE_TIME
+		var amount: float = clamp(elapsed / 0.18, 0.0, 1.0) * clamp(_wave * WAVE_TIME / 0.25, 0.0, 1.0)
+		# Upper arm out to the front, forearm up and swinging - clear of the head.
+		pose.arm_l = lerp(float(pose.arm_l), 1.85, amount)
+		pose.fore_l = lerp(float(pose.fore_l), PI - 0.3 + sin(elapsed * 13.0) * 0.45, amount)
 
 	# Rotate the whole figure around its middle, forward in the facing direction.
 	draw_set_transform(Vector2.ZERO, TAU * (1.0 - _flip) * _facing if _flip > 0.0 else 0.0, Vector2.ONE)

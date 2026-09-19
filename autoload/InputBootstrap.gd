@@ -26,6 +26,9 @@ func _ready() -> void:
 	_setup_action("interact", [
 		_key(KEY_E), _joy_button(JOY_BUTTON_X),
 	])
+	_setup_action("wave", [
+		_key(KEY_Q), _joy_button(JOY_BUTTON_Y),
+	])
 
 func _setup_action(action_name: String, events: Array, deadzone: float = 0.2) -> void:
 	if not InputMap.has_action(action_name):
