@@ -72,7 +72,7 @@ func _ready() -> void:
 	course.add_item("Drop down  ↓", GameSettings.CourseLayout.DROP)
 	course.select(course.get_item_index(GameSettings.course_layout))
 	course.item_selected.connect(func(i: int) -> void:
-		GameSettings.course_layout = course.get_item_id(i))
+		GameSettings.course_layout = course.get_item_id(i) as GameSettings.CourseLayout)
 	grid.add_child(course)
 
 	grid.add_child(_label("Player", 16, MUTED))
@@ -81,7 +81,7 @@ func _ready() -> void:
 	style.add_item("Pixel art", GameSettings.PlayerStyle.PIXEL_ART)
 	style.select(style.get_item_index(GameSettings.player_style))
 	style.item_selected.connect(func(i: int) -> void:
-		GameSettings.player_style = style.get_item_id(i))
+		GameSettings.player_style = style.get_item_id(i) as GameSettings.PlayerStyle)
 	grid.add_child(style)
 
 	grid.add_child(_label("Camera", 16, MUTED))
@@ -201,9 +201,9 @@ func _light_theme() -> Theme:
 		t.set_color(c, "CheckButton", INK)
 	return t
 
-func _label(text: String, size: int, color: Color) -> Label:
+func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", color)
 	return label

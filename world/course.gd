@@ -27,7 +27,7 @@ func _ready() -> void:
 	if args.has("deck"):
 		deck_index = int(args["deck"])
 	if args.has("mode"):
-		GameSettings.course_layout = int(args["mode"])
+		GameSettings.course_layout = int(args["mode"]) as GameSettings.CourseLayout
 	if args.has("seamless"):
 		GameSettings.camera_mode = GameSettings.CameraMode.SEAMLESS
 
