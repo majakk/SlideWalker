@@ -126,6 +126,8 @@ func _physics_process(delta: float) -> void:
 func _spawn_dust(direction: float, count: int) -> void:
 	var dust := DustPuff.new()
 	dust.material = stick_figure_visual.material
+	if _visual == pixel_art_visual:
+		dust.pixel_size = pixel_art_visual.PIXEL_SCALE
 	dust.setup(direction, count)
 	get_parent().add_child(dust)
 	dust.global_position = global_position + Vector2(0.0, 22.0)
