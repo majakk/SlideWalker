@@ -1,49 +1,51 @@
 extends RefCounted
 class_name LayoutSidescroll
-## Places slides left-to-right. Floor height is kept identical across every
-## slide (only content height varies) so the floor is one continuous strip
-## for the whole course - the completability guarantee - with no bridging
-## logic needed: padding between slides simply extends the floor a bit
-## further before the next slide's content begins.
+## Places slides left-to-right at presentation scale, bottoms aligned on one
+## continuous floor (the completability guarantee). The gap between slides
+## is floor-only "stage", like the space between projected slides.
 
 const PresentationModel = preload("res://presentation_import/presentation_model.gd")
 const PlatformCandidateBuilder = preload("res://course_generation/platform_candidate_builder.gd")
 const CourseModel = preload("res://course_generation/course_model.gd")
 
-const INTER_SLIDE_PADDING_PX: float = 80.0
+const SLIDE_GAP_PX: float = 160.0
 
-static func build(deck: PresentationModel.SlideDeck, scale_px_per_cm: float) -> CourseModel.Layout:
-	var layout := CourseModel.Layout.new()
+## World rect of each slide. Floor is y=0; slides extend upward.
+static func place_slides(deck: PresentationModel.SlideDeck, scale_px_per_cm: float) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
 	var cursor_x: float = 0.0
-
 	for manifest in deck.slides:
-		var slide_w_px: float = manifest.canvas_w * scale_px_per_cm
-		var span_px: float = slide_w_px + INTER_SLIDE_PADDING_PX
+		var size := Vector2(manifest.canvas_w, manifest.canvas_h) * scale_px_per_cm
+		rects.append(Rect2(Vector2(cursor_x, -size.y), size))
+		cursor_x += size.x + SLIDE_GAP_PX
+	return rects
 
-		var floor_platform := CourseModel.Platform.new()
-		floor_platform.x = cursor_x
-		floor_platform.y = 0.0
-		floor_platform.width = span_px
-		floor_platform.kind = CourseModel.Platform.Kind.FLOOR
-		floor_platform.source_slide_id = manifest.slide_id
-		layout.platforms.append(floor_platform)
+## per_slide_candidates: Array[Array[Candidate]] in slide-local px.
+static func build(slide_rects: Array[Rect2], per_slide_candidates: Array) -> CourseModel.Layout:
+	var layout := CourseModel.Layout.new()
+	layout.slide_rects = slide_rects
+	layout.world_left = -SLIDE_GAP_PX * 0.5
+	layout.world_right = slide_rects[-1].end.x + SLIDE_GAP_PX * 0.5 if not slide_rects.is_empty() else 0.0
 
-		for c in PlatformCandidateBuilder.build(manifest):
+	var floor_platform := CourseModel.Platform.new()
+	floor_platform.x = layout.world_left
+	floor_platform.width = layout.world_right - layout.world_left
+	floor_platform.kind = CourseModel.Platform.Kind.FLOOR
+	layout.platforms.append(floor_platform)
+
+	for i in range(slide_rects.size()):
+		var origin: Vector2 = slide_rects[i].position
+		for c in per_slide_candidates[i]:
 			var candidate: PlatformCandidateBuilder.Candidate = c
-			var height_above_floor_cm: float = manifest.canvas_h - candidate.top_cm
+			# Content resting on the slide's bottom edge is already the floor.
+			if candidate.top >= slide_rects[i].size.y - 2.0:
+				continue
 			var p := CourseModel.Platform.new()
-			p.x = cursor_x + candidate.left_cm * scale_px_per_cm
-			p.y = -height_above_floor_cm * scale_px_per_cm
-			p.width = (candidate.right_cm - candidate.left_cm) * scale_px_per_cm
-			p.kind = CourseModel.Platform.Kind.CONTENT
-			p.source_slide_id = manifest.slide_id
-			if candidate.source_shape:
-				p.image_ref = candidate.source_shape.image_ref
-				p.text_summary = candidate.source_shape.text_summary
+			p.x = origin.x + candidate.left
+			p.y = origin.y + candidate.top
+			p.width = candidate.right - candidate.left
+			p.slide_index = i
 			layout.platforms.append(p)
 
-		cursor_x += span_px
-
-	layout.world_width = cursor_x
-	layout.entry_position = Vector2(40.0, -40.0)
+	layout.entry_position = Vector2(60.0, -30.0)
 	return layout

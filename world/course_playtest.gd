@@ -1,22 +1,103 @@
 extends Node2D
-## Temporary M2 playtest harness: generates a course from a sample deck and
-## drops the player in. Replaced by the real deck-picker flow in M9.
+## Playtest harness until the real deck picker (M9): renders a deck from
+## presentations_testing/ as a side-scrolling course. Tab cycles decks,
+## F3 toggles the ledge debug overlay.
 
+const PptxParser = preload("res://presentation_import/pptx_parser.gd")
 const CourseGenerator = preload("res://course_generation/course_generator.gd")
 const CourseModel = preload("res://course_generation/course_model.gd")
+const LayoutSidescroll = preload("res://course_generation/layout_sidescroll.gd")
+const SlideContentRenderer = preload("res://world/slide_content_renderer.gd")
 const WorldAssembler = preload("res://world/world_assembler.gd")
 
-const DECK_PATH := "res://presentations_testing/F4_ Design Process and Inquiry (part 2).pptx"
-## The generated course's floor is at y=0; shift it down so it sits near
-## the bottom of the screen like the hand-built test level.
-const WORLD_OFFSET := Vector2(0, 650)
+const DECK_DIR := "res://presentations_testing"
 
+static var deck_index: int = 0
+
+@onready var slides_root: Node2D = $SlidesRoot
 @onready var platforms_root: Node2D = $PlatformsRoot
 @onready var player: CharacterBody2D = $Player
+@onready var camera: Camera2D = $CameraRig
+
+var _debug_overlay: Node2D
 
 func _ready() -> void:
-	var layout: CourseModel.Layout = CourseGenerator.generate_from_pptx(DECK_PATH)
-	platforms_root.position = WORLD_OFFSET
-	WorldAssembler.assemble(platforms_root, layout)
-	player.global_position = WORLD_OFFSET + layout.entry_position
-	print("Generated course: %d platforms, world width %.0f px" % [layout.platforms.size(), layout.world_width])
+	var decks: Array[String] = _find_decks()
+	if decks.is_empty():
+		push_warning("No .pptx files in %s" % DECK_DIR)
+		return
+	var args: Dictionary = _user_args()
+	if args.has("deck"):
+		deck_index = int(args["deck"])
+	var deck_path: String = decks[deck_index % decks.size()]
+
+	var t0: int = Time.get_ticks_msec()
+	var deck = PptxParser.parse(deck_path)
+	var px_per_cm: float = CourseGenerator.presentation_scale(deck)
+	var slide_rects: Array[Rect2] = LayoutSidescroll.place_slides(deck, px_per_cm)
+
+	var renderer := SlideContentRenderer.new()
+	renderer.open(deck_path, px_per_cm)
+	var walkables: Array = []
+	for i in range(deck.slides.size()):
+		walkables.append(renderer.render_slide(slides_root, deck.slides[i], slide_rects[i]))
+	renderer.close()
+
+	var layout: CourseModel.Layout = CourseGenerator.generate(slide_rects, walkables)
+	JumpPhysics.profile = layout.jump_profile
+	_debug_overlay = WorldAssembler.assemble(platforms_root, layout)
+
+	player.global_position = layout.entry_position
+	if args.has("slide"):
+		var r: Rect2 = slide_rects[clamp(int(args["slide"]) - 1, 0, slide_rects.size() - 1)]
+		player.global_position = Vector2(r.position.x + 60.0, -30.0)
+	camera.slide_rects = slide_rects
+	camera.target = player
+	camera.snap_to_target()
+	if args.has("debug"):
+		_debug_overlay.visible = true
+
+	print("%s: %d slides at %.1f px/cm, %d ledges, jump apex %.0fpx, built in %d ms" % [
+		deck_path.get_file(), deck.slides.size(), px_per_cm, layout.platforms.size() - 1,
+		layout.jump_profile.apex_height, Time.get_ticks_msec() - t0])
+
+	if args.has("screenshot"):
+		_save_screenshot_and_quit(String(args["screenshot"]))
+
+## Dev aid: `godot --path . res://world/course_playtest.tscn -- --deck=N
+## --slide=N [--debug] --screenshot=/abs/path.png` renders, saves, quits.
+func _save_screenshot_and_quit(path: String) -> void:
+	for _i in range(20):
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png(path)
+	print("screenshot: player at %s on_floor=%s velocity=%s" % [
+		player.global_position, player.is_on_floor(), player.velocity])
+	get_tree().quit()
+
+func _user_args() -> Dictionary:
+	var out: Dictionary = {}
+	for arg in OS.get_cmdline_user_args():
+		var kv: PackedStringArray = arg.trim_prefix("--").split("=", true, 1)
+		out[kv[0]] = kv[1] if kv.size() > 1 else ""
+	return out
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.keycode:
+			KEY_F3:
+				if _debug_overlay:
+					_debug_overlay.visible = not _debug_overlay.visible
+			KEY_TAB:
+				deck_index += 1
+				get_tree().reload_current_scene()
+
+func _find_decks() -> Array[String]:
+	var out: Array[String] = []
+	var dir := DirAccess.open(DECK_DIR)
+	if dir == null:
+		return out
+	for f in dir.get_files():
+		if f.to_lower().ends_with(".pptx"):
+			out.append(DECK_DIR.path_join(f))
+	out.sort()
+	return out

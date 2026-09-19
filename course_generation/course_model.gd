@@ -1,27 +1,32 @@
 extends RefCounted
 class_name CourseModel
-## Output of course generation: a flat, layout-mode-agnostic list of world-
-## space platforms. world_assembler.gd turns this into live scene nodes.
+## Output of course generation: world-space platforms plus the slide frames
+## they belong to. world_assembler.gd turns platforms into collision;
+## slide_content_renderer.gd draws the slides into the slide frames.
+
+const JumpProfile = preload("res://player/jump_profile.gd")
 
 class Platform:
 	extends RefCounted
 
 	enum Kind { CONTENT, FLOOR }
 
-	## World-space top-left corner (px). Floor platforms are the safety net
-	## that guarantees completability; content platforms are the top edges
-	## of actual slide shapes and are jump-through from below (one-way).
+	## World-space left end of the walkable top edge (px). Floor platforms
+	## are the completability safety net; content platforms are the top
+	## edges of slide content and are jump-through from below (one-way).
 	var x: float = 0.0
 	var y: float = 0.0
 	var width: float = 0.0
 	var kind: Kind = Kind.CONTENT
-	var source_slide_id: int = -1
-	var image_ref: String = ""
-	var text_summary: String = ""
+	var slide_index: int = -1
 
 class Layout:
 	extends RefCounted
 
 	var platforms: Array[Platform] = []
-	var world_width: float = 0.0
+	## World-space rect of each slide, in deck order.
+	var slide_rects: Array[Rect2] = []
+	var world_left: float = 0.0
+	var world_right: float = 0.0
 	var entry_position: Vector2 = Vector2.ZERO
+	var jump_profile: JumpProfile

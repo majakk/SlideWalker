@@ -12,4 +12,4 @@ func _ready() -> void:
 
 func _on_style_chosen(style: GameSettings.PlayerStyle) -> void:
 	GameSettings.player_style = style
-	get_tree().change_scene_to_file("res://world/test_level.tscn")
+	get_tree().change_scene_to_file("res://world/course_playtest.tscn")

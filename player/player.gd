@@ -41,7 +41,7 @@ func _physics_process(delta: float) -> void:
 		last_safe_position = global_position
 	else:
 		coyote_timer = max(coyote_timer - delta, 0.0)
-		velocity.y = min(velocity.y + JumpPhysics.GRAVITY * delta, JumpPhysics.MAX_FALL_SPEED)
+		velocity.y = min(velocity.y + JumpPhysics.profile.gravity * delta, JumpPhysics.profile.max_fall_speed)
 
 	if Input.is_action_just_pressed("jump"):
 		jump_buffer_timer = JUMP_BUFFER_TIME
@@ -50,13 +50,13 @@ func _physics_process(delta: float) -> void:
 
 	var input_dir: float = Input.get_axis("move_left", "move_right")
 	if input_dir != 0.0:
-		velocity.x = move_toward(velocity.x, input_dir * JumpPhysics.RUN_SPEED, ACCEL * delta)
+		velocity.x = move_toward(velocity.x, input_dir * JumpPhysics.profile.run_speed, ACCEL * delta)
 		facing_direction = sign(input_dir)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)
 
 	if jump_buffer_timer > 0.0 and coyote_timer > 0.0:
-		velocity.y = JumpPhysics.JUMP_VELOCITY
+		velocity.y = JumpPhysics.profile.jump_velocity
 		coyote_timer = 0.0
 		jump_buffer_timer = 0.0
 

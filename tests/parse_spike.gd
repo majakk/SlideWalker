@@ -59,14 +59,27 @@ func _report(path: String) -> void:
 		print("image refs missing from archive: ", missing)
 		zip.close()
 
-	for i in range(min(5, deck.slides.size())):
+	for i in range(min(OS.get_environment("SPIKE_SLIDES").to_int() if OS.has_environment("SPIKE_SLIDES") else 3, deck.slides.size())):
 		var s: PresentationModel.SlideManifest = deck.slides[i]
-		print("  slide ", s.slide_id, " (", s.canvas_w, "x", s.canvas_h, "cm): ", s.shapes.size(), " shapes")
+		print("  slide ", s.slide_id, " (%.1fx%.1fcm) bg=%s%s: %d shapes" % [
+			s.canvas_w, s.canvas_h, s.bg_color.to_html(false),
+			(" img=" + s.bg_image_ref) if s.bg_image_ref != "" else "", s.shapes.size()])
 		for shape in s.shapes:
 			var label: String = shape.text_summary if shape.text_summary != "" else shape.image_ref
-			print("    - ", PresentationModel.ShapeRect.Type.keys()[shape.type], " @ (",
-				"%.1f" % shape.x, ",", "%.1f" % shape.y, ") ",
-				"%.1f" % shape.w, "x", "%.1f" % shape.h, "cm",
-				" explicit=", shape.position_is_explicit,
-				"  ", label.left(40))
+			var style: String = ""
+			if not shape.paragraphs.is_empty() and not shape.paragraphs[0].runs.is_empty():
+				var r: PresentationModel.TextRun = shape.paragraphs[0].runs[0]
+				style = " [%s %.0fpt%s #%s %s anchor=%s bullet='%s']" % [r.font_family, r.size_pt,
+					" bold" if r.bold else "", r.color.to_html(false), shape.paragraphs[0].align,
+					shape.text_anchor, shape.paragraphs[0].bullet]
+			if shape.fill_color.a > 0.0:
+				style += " fill=#" + shape.fill_color.to_html(false)
+			if shape.image_crop != Rect2(0, 0, 1, 1):
+				style += " crop=%s" % shape.image_crop
+			print("    - %s%s @ (%.1f,%.1f) %.1fx%.1fcm%s  %s%s" % [
+				PresentationModel.ShapeRect.Type.keys()[shape.type],
+				("(" + shape.placeholder_type + ")") if shape.placeholder_type != "" else "",
+				shape.x, shape.y, shape.w, shape.h,
+				"" if shape.position_is_explicit else " FALLBACK",
+				label.left(34), style])
 	print("")

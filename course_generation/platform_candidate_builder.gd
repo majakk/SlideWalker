@@ -1,56 +1,44 @@
 extends RefCounted
 class_name PlatformCandidateBuilder
-## Turns a slide's shapes into platform candidates: each shape's top edge is
-## a walkable segment. Near-coincident overlapping candidates are merged
-## (highest z-order/topmost-drawn shape wins) so dense decks don't produce
-## bumpy micro-platform noise.
+## Turns a slide's walkable rectangles (slide-local presentation px) into
+## platform candidates: each rectangle's top edge is a walkable segment.
+## Near-coincident overlapping edges merge so dense slides don't produce
+## bumpy micro-platforms.
 
-const PresentationModel = preload("res://presentation_import/presentation_model.gd")
-
-## Shapes narrower than this (cm) are dropped as platform candidates -
-## too thin to stand on - but still render as scenery in later milestones.
-const MIN_WIDTH_CM: float = 1.0
-## Top edges within this vertical distance (cm), with overlapping
-## horizontal spans, are treated as the same platform.
-const MERGE_Y_EPSILON_CM: float = 0.3
+## Narrower edges (px) are too thin to stand on.
+const MIN_WIDTH_PX: float = 24.0
+## Top edges within this vertical distance (px) that overlap horizontally
+## become one platform.
+const MERGE_Y_EPSILON_PX: float = 6.0
 
 class Candidate:
 	extends RefCounted
-	var left_cm: float = 0.0
-	var right_cm: float = 0.0
-	var top_cm: float = 0.0
-	var z_order: int = -1
-	var source_shape: PresentationModel.ShapeRect = null
+	var left: float = 0.0
+	var right: float = 0.0
+	var top: float = 0.0
 
-static func build(manifest: PresentationModel.SlideManifest) -> Array[Candidate]:
+static func build(walkables: Array[Rect2]) -> Array[Candidate]:
 	var raw: Array[Candidate] = []
-	for shape in manifest.shapes:
-		if shape.w < MIN_WIDTH_CM:
+	for r in walkables:
+		if r.size.x < MIN_WIDTH_PX:
 			continue
 		var c := Candidate.new()
-		c.left_cm = shape.x
-		c.right_cm = shape.x + shape.w
-		c.top_cm = shape.y
-		c.z_order = shape.z_order
-		c.source_shape = shape
+		c.left = r.position.x
+		c.right = r.end.x
+		c.top = r.position.y
 		raw.append(c)
-	return _merge(raw)
 
-static func _merge(raw: Array[Candidate]) -> Array[Candidate]:
-	raw.sort_custom(func(a: Candidate, b: Candidate) -> bool: return a.top_cm < b.top_cm)
+	raw.sort_custom(func(a: Candidate, b: Candidate) -> bool: return a.top < b.top)
 	var merged: Array[Candidate] = []
 	for c in raw:
 		var absorbed := false
 		for existing in merged:
-			var y_close: bool = abs(existing.top_cm - c.top_cm) <= MERGE_Y_EPSILON_CM
-			var x_overlaps: bool = c.left_cm < existing.right_cm and c.right_cm > existing.left_cm
+			var y_close: bool = abs(existing.top - c.top) <= MERGE_Y_EPSILON_PX
+			var x_overlaps: bool = c.left < existing.right and c.right > existing.left
 			if y_close and x_overlaps:
-				if c.z_order > existing.z_order:
-					existing.top_cm = c.top_cm
-					existing.z_order = c.z_order
-					existing.source_shape = c.source_shape
-				existing.left_cm = min(existing.left_cm, c.left_cm)
-				existing.right_cm = max(existing.right_cm, c.right_cm)
+				existing.top = min(existing.top, c.top)
+				existing.left = min(existing.left, c.left)
+				existing.right = max(existing.right, c.right)
 				absorbed = true
 				break
 		if not absorbed:

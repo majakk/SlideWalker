@@ -50,7 +50,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _ground_pose() -> Dictionary:
-	var amount: float = clamp(abs(_velocity.x) / JumpPhysics.RUN_SPEED, 0.0, 1.0)
+	var amount: float = clamp(abs(_velocity.x) / JumpPhysics.profile.run_speed, 0.0, 1.0)
 	var idle: float = 1.0 - amount
 	var s: float = sin(_phase)
 	var c: float = cos(_phase)

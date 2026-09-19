@@ -20,6 +20,8 @@ GameSettings="*res://autoload/GameSettings.gd"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [physics]
 
@@ -27,4 +29,4 @@ window/size/viewport_height=720
 
 [rendering]
 
-environment/defaults/default_clear_color=Color(0.53, 0.81, 0.92, 1)
+environment/defaults/default_clear_color=Color(0.88, 0.9, 0.93, 1)

@@ -70,9 +70,20 @@ func _initialize() -> void:
 	manifest.canvas_w = 25.4
 	manifest.canvas_h = 14.29
 
-	var ctx := PptxParser.ParseContext.new()
+	# The child is a filled rectangle so it counts as visible.
+	(child_sp["children"][1]["children"] as Array).append({
+		"tag": "a:solidFill", "attrs": {}, "text": "",
+		"children": [{"tag": "a:srgbClr", "attrs": {"val": "336699"}, "text": "", "children": []}],
+	})
+
+	var ctx := PptxParser.SlideContext.new()
+	ctx.doc = PptxParser.Doc.new()
+	ctx.slide = PptxParser.Part.new()
+	ctx.layout = PptxParser.Part.new()
+	ctx.master = PptxParser.Part.new()
+	ctx.theme = preload("res://presentation_import/pptx_theme.gd").new()
 	var identity: Dictionary = {"scale": Vector2.ONE, "trans": Vector2.ZERO}
-	PptxParser._walk_shape_tree(sp_tree, identity, {}, manifest, ctx)
+	PptxParser._walk_shape_tree(sp_tree, identity, ctx.slide, ctx, manifest)
 
 	print("shapes found: ", manifest.shapes.size())
 	var ok: bool = manifest.shapes.size() == 1
