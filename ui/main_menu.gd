@@ -70,6 +70,7 @@ func _ready() -> void:
 	course.add_item("Side-scroller  →", GameSettings.CourseLayout.SIDE_SCROLL)
 	course.add_item("Climb up  ↑", GameSettings.CourseLayout.CLIMB)
 	course.add_item("Drop down  ↓", GameSettings.CourseLayout.DROP)
+	course.add_item("Spiral (big canvas)  ↻", GameSettings.CourseLayout.SPIRAL)
 	course.select(course.get_item_index(GameSettings.course_layout))
 	course.item_selected.connect(func(i: int) -> void:
 		GameSettings.course_layout = course.get_item_id(i) as GameSettings.CourseLayout)

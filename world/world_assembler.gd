@@ -59,6 +59,13 @@ static func assemble(parent: Node2D, layout: CourseModel.Layout) -> Node2D:
 		var r: Rect2 = layout.slide_rects[i]
 		var number := Label.new()
 		number.text = "%d / %d" % [i + 1, layout.slide_rects.size()]
+		# On the 2D canvas, point the presenter toward the next slide.
+		if layout.two_d and i + 1 < layout.slide_rects.size():
+			var step: Vector2 = layout.slide_rects[i + 1].get_center() - r.get_center()
+			if abs(step.x) > abs(step.y):
+				number.text += "   →" if step.x > 0.0 else "   ←"
+			else:
+				number.text += "   ↓" if step.y > 0.0 else "   ↑"
 		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		number.add_theme_font_size_override("font_size", SLIDE_NUMBER_SIZE)
 		number.add_theme_color_override("font_color", SLIDE_NUMBER_COLOR)

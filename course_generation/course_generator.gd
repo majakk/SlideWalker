@@ -11,10 +11,11 @@ const PlatformCandidateBuilder = preload("res://course_generation/platform_candi
 const JumpCalibrator = preload("res://course_generation/jump_calibrator.gd")
 const LayoutSidescroll = preload("res://course_generation/layout_sidescroll.gd")
 const LayoutVertical = preload("res://course_generation/layout_vertical.gd")
+const LayoutSpiral = preload("res://course_generation/layout_spiral.gd")
 const CourseModel = preload("res://course_generation/course_model.gd")
 
 ## Same order as GameSettings.CourseLayout.
-enum Mode { SIDE_SCROLL, CLIMB, DROP }
+enum Mode { SIDE_SCROLL, CLIMB, DROP, SPIRAL }
 
 ## Logical design resolution (project.godot viewport size).
 const VIEW_SIZE := Vector2(1280, 720)
@@ -45,6 +46,8 @@ static func place_slides(sizes: Array[Vector2], mode: Mode) -> Array[Rect2]:
 			return LayoutVertical.place_slides(sizes, true)
 		Mode.DROP:
 			return LayoutVertical.place_slides(sizes, false)
+		Mode.SPIRAL:
+			return LayoutSpiral.place_slides(sizes)
 	return LayoutSidescroll.place_slides(sizes)
 
 ## Headless estimate of walkable rects straight from shape frames (the
@@ -79,6 +82,8 @@ static func generate(slide_rects: Array[Rect2], per_slide_walkables: Array, mode
 			layout = LayoutVertical.build(slide_rects, per_slide_candidates, profile, true)
 		Mode.DROP:
 			layout = LayoutVertical.build(slide_rects, per_slide_candidates, profile, false)
+		Mode.SPIRAL:
+			layout = LayoutSpiral.build(slide_rects, per_slide_candidates, profile)
 		_:
 			layout = sidescroll
 	layout.jump_profile = profile

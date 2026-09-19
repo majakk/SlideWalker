@@ -30,15 +30,12 @@ func current_slide_index() -> int:
 	var best_dist: float = INF
 	var p: Vector2 = target.global_position
 	for i in range(_layout.slide_rects.size()):
-		var r: Rect2 = _layout.slide_rects[i]
-		var dist: float
-		if _layout.vertical:
-			# The stage band under a slide belongs to that slide.
-			dist = max(0.0, max(r.position.y - p.y, p.y - (r.end.y + CourseGenerator.STAGE_PX)))
-		else:
-			dist = max(0.0, max(r.position.x - p.x, p.x - r.end.x))
-		if dist < best_dist:
-			best_dist = dist
+		# The stage band under a slide belongs to that slide.
+		var r: Rect2 = _layout.slide_rects[i].grow_side(SIDE_BOTTOM, CourseGenerator.STAGE_PX)
+		var d := Vector2(max(0.0, max(r.position.x - p.x, p.x - r.end.x)),
+			max(0.0, max(r.position.y - p.y, p.y - r.end.y)))
+		if d.length() < best_dist:
+			best_dist = d.length()
 			best = i
 	return best
 
@@ -65,7 +62,18 @@ func _update_framing() -> void:
 	# at the ends so the view never runs past the first/last slide.
 	var first: Rect2 = _layout.slide_rects[0]
 	var last: Rect2 = _layout.slide_rects[-1]
-	if _layout.vertical:
+	if _layout.two_d:
+		var all: Rect2 = first
+		for s in _layout.slide_rects:
+			all = all.merge(s)
+		all = all.grow_individual(side, CourseGenerator.TOP_MARGIN_PX, side, CourseGenerator.STAGE_PX)
+		var half: Vector2 = view / fit * 0.5
+		var lo: Vector2 = all.position + half
+		var hi: Vector2 = all.end - half
+		global_position = Vector2(
+			clamp(target.global_position.x, lo.x, hi.x) if lo.x <= hi.x else all.get_center().x,
+			clamp(target.global_position.y, lo.y, hi.y) if lo.y <= hi.y else all.get_center().y)
+	elif _layout.vertical:
 		var half_h: float = view.y / fit * 0.5
 		var lo: float = min(first.position.y, last.position.y) - CourseGenerator.TOP_MARGIN_PX + half_h
 		var hi: float = max(first.end.y, last.end.y) + CourseGenerator.STAGE_PX - half_h

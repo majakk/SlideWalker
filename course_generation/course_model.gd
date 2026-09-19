@@ -39,6 +39,8 @@ class Layout:
 	var world_bounds: Rect2 = Rect2()
 	## Slides stacked vertically (climb/drop) rather than side by side.
 	var vertical: bool = false
+	## Slides on a 2D canvas (spiral): the seamless camera follows both axes.
+	var two_d: bool = false
 	## Extra horizontal room the camera keeps on each side of a slide
 	## (vertical courses place helper rungs there).
 	var side_zone: float = 0.0

@@ -69,6 +69,18 @@ func _ready() -> void:
 	camera.setup(layout, player)
 	if args.has("debug"):
 		_debug_overlay.visible = true
+	if args.has("overview"):
+		# Dev aid: zoom out to the whole course.
+		camera.set_process(false)
+		var all: Rect2 = slide_rects[0]
+		for r in slide_rects:
+			all = all.merge(r)
+		all = all.grow(200.0)
+		var view: Vector2 = get_viewport_rect().size
+		var fit: float = min(view.x / all.size.x, view.y / all.size.y)
+		camera.position_smoothing_enabled = false
+		camera.zoom = Vector2(fit, fit)
+		camera.global_position = all.get_center()
 
 	var helpers: int = layout.platforms.filter(
 		func(p: CourseModel.Platform) -> bool: return p.kind == CourseModel.Platform.Kind.HELPER).size()

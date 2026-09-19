@@ -8,7 +8,7 @@ enum PlayerStyle { PIXEL_ART, STICK_FIGURE }
 ## continuously along the course.
 enum CameraMode { PER_SLIDE, SEAMLESS }
 ## Same order as CourseGenerator.Mode.
-enum CourseLayout { SIDE_SCROLL, CLIMB, DROP }
+enum CourseLayout { SIDE_SCROLL, CLIMB, DROP, SPIRAL }
 
 var player_style: PlayerStyle = PlayerStyle.STICK_FIGURE
 var camera_mode: CameraMode = CameraMode.PER_SLIDE

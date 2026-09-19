@@ -30,7 +30,7 @@ func _report(path: String) -> void:
 	for m in deck.slides:
 		walkables.append(CourseGenerator.walkables_from_shapes(m, scale))
 
-	for mode in [CourseGenerator.Mode.SIDE_SCROLL, CourseGenerator.Mode.CLIMB, CourseGenerator.Mode.DROP]:
+	for mode in [CourseGenerator.Mode.SIDE_SCROLL, CourseGenerator.Mode.CLIMB, CourseGenerator.Mode.DROP, CourseGenerator.Mode.SPIRAL]:
 		var rects: Array[Rect2] = CourseGenerator.place_slides(CourseGenerator.slide_sizes(deck, scale), mode)
 		var layout: CourseModel.Layout = CourseGenerator.generate(rects, walkables, mode)
 		var profile = layout.jump_profile
@@ -48,5 +48,14 @@ func _report(path: String) -> void:
 			reach.size(), layout.platforms.size()]
 		if mode == CourseGenerator.Mode.CLIMB:
 			line += ", helper rungs %d, top slide reachable: %s" % [helpers, reach.has(last_floor)]
+		if mode == CourseGenerator.Mode.SPIRAL:
+			var floors: int = 0
+			var floors_reached: int = 0
+			for i in range(layout.platforms.size()):
+				if layout.platforms[i].kind == CourseModel.Platform.Kind.FLOOR:
+					floors += 1
+					if reach.has(i):
+						floors_reached += 1
+			line += ", helper rungs %d, rows reachable %d/%d" % [helpers, floors_reached, floors]
 		print(line)
 	print("")
