@@ -17,11 +17,16 @@ static func _max_flight_dx() -> float:
 	return RUN_SPEED * _time_to_apex() * 2.0
 
 ## Max upward height reachable when covering horizontal distance dx during
-## the jump (dx and the returned height are both >= 0). Returns -INF when
-## dx exceeds what a single jump can cover at all.
+## the jump (dx and the returned height are both >= 0). The player controls
+## horizontal speed, so anything within the apex's horizontal reach can be
+## hit at full apex height; beyond that, height follows the descending arc
+## at full run speed. Returns -INF when dx exceeds a single jump's range.
 static func max_up_dy(dx: float) -> float:
 	if dx >= _max_flight_dx():
 		return -INF
+	var apex: float = (JUMP_VELOCITY * JUMP_VELOCITY) / (2.0 * GRAVITY)
+	if dx <= RUN_SPEED * _time_to_apex():
+		return apex
 	var t: float = dx / RUN_SPEED
 	return -JUMP_VELOCITY * t - 0.5 * GRAVITY * t * t
 
