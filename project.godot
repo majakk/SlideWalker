@@ -9,6 +9,9 @@ config_version=5
 config/name="SlideWalker"
 run/main_scene="res://ui/main_menu.tscn"
 config/features=PackedStringArray("4.7")
+config/icon="res://assets/icons/stickman_icon.png"
+boot_splash/bg_color=Color(0.88, 0.9, 0.93, 1)
+boot_splash/show_image=false
 
 [autoload]
 
@@ -30,3 +33,4 @@ window/stretch/aspect="expand"
 [rendering]
 
 environment/defaults/default_clear_color=Color(0.88, 0.9, 0.93, 1)
+textures/vram_compression/import_etc2_astc=true
