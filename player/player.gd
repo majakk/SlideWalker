@@ -106,13 +106,13 @@ func _physics_process(delta: float) -> void:
 		and sign(input_dir) != sign(velocity.x) \
 		and abs(velocity.x) > profile.run_speed * SKID_SPEED_FRACTION
 	if skidding and not _was_skidding:
-		_spawn_dust(sign(velocity.x), 5)
+		_spawn_dust(sign(velocity.x), 2)
 	_was_skidding = skidding
 
 	_fall_speed = velocity.y
 	move_and_slide()
 	if is_on_floor() and not _was_on_floor and _fall_speed > LANDING_DUST_SPEED:
-		_spawn_dust(0.0, 6)
+		_spawn_dust(0.0, 2)
 	_was_on_floor = is_on_floor()
 	stick_figure_visual.set_motion(velocity, is_on_floor(), facing_direction, skidding)
 
