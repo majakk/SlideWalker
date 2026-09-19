@@ -1,6 +1,12 @@
 extends Control
 ## Startup screen: pick a presentation, course type, player style and camera
 ## mode, then start. Built in code to keep the scene file trivial.
+##
+## Also used as the pause overlay (in_session = true) on top of a running
+## presentation: the main button then reads "Resume presentation" - unless
+## a new file or course type was picked, which needs a fresh start.
+
+signal resume_requested
 
 const COURSE_SCENE := "res://world/course.tscn"
 const DEV_DECK_DIR := "res://presentations_testing"
@@ -10,6 +16,9 @@ const INK := Color(0.12, 0.13, 0.15)
 const MUTED := Color(0.45, 0.48, 0.53)
 const ACCENT := Color(0.18, 0.44, 0.85)
 
+## Set before adding to the tree when shown over a running presentation.
+var in_session: bool = false
+
 var _file_label: Label
 var _start_button: Button
 var _dialog: FileDialog
@@ -17,7 +26,8 @@ var _dialog: FileDialog
 func _ready() -> void:
 	theme = _light_theme()
 	var bg := ColorRect.new()
-	bg.color = BACKDROP
+	# Over a paused presentation, dim it rather than hiding it.
+	bg.color = Color(0.05, 0.06, 0.08, 0.55) if in_session else BACKDROP
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
@@ -73,7 +83,8 @@ func _ready() -> void:
 	course.add_item("Spiral (big canvas)  ↻", GameSettings.CourseLayout.SPIRAL)
 	course.select(course.get_item_index(GameSettings.course_layout))
 	course.item_selected.connect(func(i: int) -> void:
-		GameSettings.course_layout = course.get_item_id(i) as GameSettings.CourseLayout)
+		GameSettings.course_layout = course.get_item_id(i) as GameSettings.CourseLayout
+		_refresh_start_button())
 	grid.add_child(course)
 
 	grid.add_child(_label("Player", 16, MUTED))
@@ -93,6 +104,13 @@ func _ready() -> void:
 		GameSettings.camera_mode = GameSettings.CameraMode.SEAMLESS if on else GameSettings.CameraMode.PER_SLIDE)
 	grid.add_child(seamless)
 
+	grid.add_child(_label("Timer", 16, MUTED))
+	var timer := CheckButton.new()
+	timer.text = "Show elapsed time in the corner"
+	timer.button_pressed = GameSettings.show_timer
+	timer.toggled.connect(func(on: bool) -> void: GameSettings.show_timer = on)
+	grid.add_child(timer)
+
 	_start_button = Button.new()
 	_start_button.text = "Start presenting"
 	_start_button.custom_minimum_size = Vector2(0, 52)
@@ -111,11 +129,11 @@ func _ready() -> void:
 	start_focus.border_color = ACCENT.darkened(0.3)
 	start_focus.set_border_width_all(2)
 	_start_button.add_theme_stylebox_override("focus", start_focus)
-	_start_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(COURSE_SCENE))
+	_start_button.pressed.connect(_on_start_pressed)
 	col.add_child(_start_button)
 
 	var controls := _label("A/D or stick: move · Space/A: jump (again in the air: double jump) · S/down: drop · " +
-		"Q/Y: wave · C: camera · Esc: menu", 13, MUTED)
+		"Q/Y: wave · C: camera · T: timer · Esc: menu", 13, MUTED)
 	controls.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(controls)
@@ -144,8 +162,26 @@ func _open_file_dialog() -> void:
 		_dialog.file_selected.connect(func(path: String) -> void:
 			GameSettings.deck_path = path
 			_refresh_file_label())
+		_dialog.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(_dialog)
 	_dialog.popup_centered_ratio(0.6)
+
+func _on_start_pressed() -> void:
+	if in_session and GameSettings.session_matches_choices():
+		resume_requested.emit()
+		return
+	get_tree().paused = false
+	get_tree().change_scene_to_file(COURSE_SCENE)
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Esc on the pause overlay returns to the presentation.
+	if in_session and event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		resume_requested.emit()
+
+func _refresh_start_button() -> void:
+	var resume: bool = in_session and GameSettings.session_matches_choices()
+	_start_button.text = "Resume presentation" if resume else "Start presenting"
 
 func _refresh_file_label() -> void:
 	if GameSettings.deck_path != "":
@@ -160,6 +196,7 @@ func _refresh_file_label() -> void:
 		_file_label.text = "No file chosen"
 		_file_label.add_theme_color_override("font_color", MUTED)
 		_start_button.disabled = true
+	_refresh_start_button()
 
 func _has_dev_decks() -> bool:
 	var dir := DirAccess.open(DEV_DECK_DIR)
