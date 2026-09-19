@@ -3,16 +3,20 @@ class_name JumpCalibrator
 ## The platformer adapts to the deck: slides are shown at presentation size,
 ## so the jump is tuned to the deck's content instead of shrinking slides.
 ## Picks the smallest apex where (a) the double jump reaches every ledge
-## that is reachable at all, and (b) a plain single jump still reaches most
-## ledges - so climbing text lines feels easy and the double jump is for
-## the big gaps. Headroom on top so jumps aren't frame-perfect.
+## that is reachable at all, (b) a plain single jump still reaches most
+## ledges, and (c) a double jump straight up from the floor reaches the
+## highest ledge in the deck (the top of the slide, titles included).
+## Headroom on top so jumps aren't frame-perfect.
 
 const CourseModel = preload("res://course_generation/course_model.gd")
 const Reachability = preload("res://course_generation/reachability.gd")
 const JumpProfile = preload("res://player/jump_profile.gd")
 
 const MIN_APEX_BODIES: float = 2.0
-const MAX_APEX_BODIES: float = 6.0
+const MAX_APEX_BODIES: float = 8.5
+## Extra height above the highest ledge the floor double jump must clear,
+## so landing on the title isn't a pixel-perfect stretch.
+const TOP_REACH_MARGIN_PX: float = 30.0
 ## Share of reachable ledges a single jump must reach on its own.
 const SINGLE_JUMP_SHARE: float = 0.85
 const HEADROOM: float = 1.12
@@ -41,7 +45,15 @@ static func calibrate(layout: CourseModel.Layout) -> JumpProfile:
 	var ledges: int = layout.platforms.size() - 1
 	if best < ledges:
 		print("JumpCalibrator: %d/%d ledges unreachable even with a double jump" % [ledges - best, ledges])
-	return make_profile(min(hi * HEADROOM, MAX_APEX_BODIES * body))
+
+	# Floor double jump reaches the top: apex * (1 + strength^2) >= highest ledge.
+	var highest: float = 0.0
+	for p in layout.platforms:
+		highest = max(highest, -p.y)
+	var strength: float = make_profile(lo).air_jump_strength
+	var top_apex: float = (highest + TOP_REACH_MARGIN_PX) / (1.0 + strength * strength)
+
+	return make_profile(min(max(hi * HEADROOM, top_apex), MAX_APEX_BODIES * body))
 
 static func make_profile(apex: float) -> JumpProfile:
 	var profile := JumpProfile.new()

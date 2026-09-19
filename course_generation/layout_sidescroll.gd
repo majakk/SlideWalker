@@ -7,6 +7,7 @@ class_name LayoutSidescroll
 const PresentationModel = preload("res://presentation_import/presentation_model.gd")
 const PlatformCandidateBuilder = preload("res://course_generation/platform_candidate_builder.gd")
 const CourseModel = preload("res://course_generation/course_model.gd")
+const JumpProfile = preload("res://player/jump_profile.gd")
 
 const SLIDE_GAP_PX: float = 160.0
 
@@ -35,15 +36,25 @@ static func build(slide_rects: Array[Rect2], per_slide_candidates: Array) -> Cou
 
 	for i in range(slide_rects.size()):
 		var origin: Vector2 = slide_rects[i].position
+		var slide_size: Vector2 = slide_rects[i].size
 		for c in per_slide_candidates[i]:
 			var candidate: PlatformCandidateBuilder.Candidate = c
 			# Content resting on the slide's bottom edge is already the floor.
-			if candidate.top >= slide_rects[i].size.y - 2.0:
+			if candidate.top >= slide_size.y - 2.0:
+				continue
+			# Standing here would put the figure outside the slide (e.g. the
+			# top edge of a full-bleed image, or content above the slide).
+			if candidate.top < JumpProfile.BODY_HEIGHT:
+				continue
+			# Content hanging off the sides is clipped, like in a slideshow.
+			var left: float = max(candidate.left, 0.0)
+			var right: float = min(candidate.right, slide_size.x)
+			if right - left < PlatformCandidateBuilder.MIN_WIDTH_PX:
 				continue
 			var p := CourseModel.Platform.new()
-			p.x = origin.x + candidate.left
+			p.x = origin.x + left
 			p.y = origin.y + candidate.top
-			p.width = candidate.right - candidate.left
+			p.width = right - left
 			p.slide_index = i
 			layout.platforms.append(p)
 
