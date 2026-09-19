@@ -15,6 +15,7 @@ const BACKDROP := Color(0.88, 0.9, 0.93)
 const INK := Color(0.12, 0.13, 0.15)
 const MUTED := Color(0.45, 0.48, 0.53)
 const ACCENT := Color(0.18, 0.44, 0.85)
+const COFFEE_URL := "https://buymeacoffee.com/mattiasjac9"
 
 ## Set before adding to the tree when shown over a running presentation.
 var in_session: bool = false
@@ -138,6 +139,15 @@ func _ready() -> void:
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(controls)
 
+	col.add_child(HSeparator.new())
+	var coffee := LinkButton.new()
+	coffee.text = "♥ If you enjoy this - please buy the developer a coffee!"
+	coffee.underline = LinkButton.UNDERLINE_MODE_ON_HOVER
+	coffee.uri = COFFEE_URL
+	coffee.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	coffee.pressed.connect(func() -> void: OS.shell_open(COFFEE_URL))
+	col.add_child(coffee)
+
 	_refresh_file_label()
 	_start_button.grab_focus()
 
@@ -237,6 +247,8 @@ func _light_theme() -> Theme:
 		t.set_stylebox(s, "CheckButton", flat)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		t.set_color(c, "CheckButton", INK)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		t.set_color(c, "LinkButton", ACCENT)
 	return t
 
 func _label(text: String, font_size: int, color: Color) -> Label:
