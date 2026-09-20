@@ -56,7 +56,7 @@ are read directly with Godot's built-in `ZIPReader`/`XMLParser`, with no externa
 | Drop through the current ledge | S / Down | Down |
 | Wave | Q | Y |
 | Open the link you're standing at | E | X |
-| Toggle assist platforms | H | — |
+| Toggle assist platforms | H | B |
 | Toggle camera mode | C | — |
 | Toggle timer | T | — |
 | Pause / resume | Esc | — |

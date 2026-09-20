@@ -218,6 +218,10 @@ func _resume() -> void:
 	_timer_label.visible = GameSettings.show_timer
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("assist"):
+		get_viewport().set_input_as_handled()
+		_toggle_assist()
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_F3:
@@ -234,8 +238,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_T:
 				GameSettings.show_timer = not GameSettings.show_timer
 				_timer_label.visible = GameSettings.show_timer
-			KEY_H:
-				_toggle_assist()
 			KEY_ESCAPE:
 				get_viewport().set_input_as_handled()
 				_open_menu()

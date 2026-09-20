@@ -29,6 +29,10 @@ func _ready() -> void:
 	_setup_action("wave", [
 		_key(KEY_Q), _joy_button(JOY_BUTTON_Y),
 	])
+	# Toggles the invisible full-width rungs that make a slide reachable.
+	_setup_action("assist", [
+		_key(KEY_H), _joy_button(JOY_BUTTON_B),
+	])
 
 func _setup_action(action_name: String, events: Array, deadzone: float = 0.2) -> void:
 	if not InputMap.has_action(action_name):
