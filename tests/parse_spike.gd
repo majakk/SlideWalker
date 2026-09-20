@@ -1,10 +1,10 @@
 extends SceneTree
-## M1 spike: parse the real sample decks in presentations_testing/ and print
-## coverage stats, to validate the pure-GDScript pptx parsing bet before
-## building course-gen on top of it. Run with:
+## M1 spike: parse the real sample decks in presentations_testing/ (every
+## supported format) and print coverage stats, to validate the parsing bet
+## before building course-gen on top of it. Run with:
 ##   godot --headless -s res://tests/parse_spike.gd
 
-const PptxParser = preload("res://presentation_import/pptx_parser.gd")
+const PresentationParser = preload("res://presentation_import/presentation_parser.gd")
 const PresentationModel = preload("res://presentation_import/presentation_model.gd")
 
 func _initialize() -> void:
@@ -13,17 +13,18 @@ func _initialize() -> void:
 		print("No presentations_testing/ directory found.")
 		quit()
 		return
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while file_name != "":
-		if file_name.to_lower().ends_with(".pptx"):
-			_report("res://presentations_testing/".path_join(file_name))
-		file_name = dir.get_next()
+	var files: Array[String] = []
+	for f in dir.get_files():
+		if PresentationParser.is_supported(f):
+			files.append(f)
+	files.sort()
+	for f in files:
+		_report("res://presentations_testing/".path_join(f))
 	quit()
 
 func _report(path: String) -> void:
 	print("==== ", path, " ====")
-	var deck := PptxParser.parse(path)
+	var deck := PresentationParser.parse(path)
 	print("slides: ", deck.slides.size())
 
 	var total_shapes := 0
@@ -49,15 +50,23 @@ func _report(path: String) -> void:
 	print("by type: ", type_counts)
 	print("image refs found: ", image_refs.size())
 
-	var zip := ZIPReader.new()
-	if zip.open(path) == OK:
-		var missing := 0
+	var missing := 0
+	if PresentationParser.uses_filesystem_images(path):
+		# pdf: rasterized pages on disk rather than entries in an archive.
 		for ref in image_refs:
-			if not zip.file_exists(ref):
+			if not FileAccess.file_exists(ref):
 				missing += 1
-				print("  MISSING media: ", ref)
-		print("image refs missing from archive: ", missing)
-		zip.close()
+				print("  MISSING page raster: ", ref)
+		print("page rasters missing: ", missing)
+	else:
+		var zip := ZIPReader.new()
+		if zip.open(path) == OK:
+			for ref in image_refs:
+				if not zip.file_exists(ref):
+					missing += 1
+					print("  MISSING media: ", ref)
+			print("image refs missing from archive: ", missing)
+			zip.close()
 
 	for i in range(min(OS.get_environment("SPIKE_SLIDES").to_int() if OS.has_environment("SPIKE_SLIDES") else 3, deck.slides.size())):
 		var s: PresentationModel.SlideManifest = deck.slides[i]

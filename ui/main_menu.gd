@@ -8,6 +8,8 @@ extends Control
 
 signal resume_requested
 
+const PresentationParser = preload("res://presentation_import/presentation_parser.gd")
+
 const COURSE_SCENE := "res://world/course.tscn"
 const DEV_DECK_DIR := "res://presentations_testing"
 
@@ -24,6 +26,7 @@ var in_session: bool = false
 var _file_label: Label
 var _start_button: Button
 var _dialog: FileDialog
+var _notice: Label
 
 func _ready() -> void:
 	theme = _light_theme()
@@ -152,6 +155,11 @@ func _ready() -> void:
 	_start_button.pressed.connect(_on_start_pressed)
 	col.add_child(_start_button)
 
+	_notice = _label("", 13, Color(0.72, 0.28, 0.2))
+	_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_notice.visible = false
+	col.add_child(_notice)
+
 	var controls := _label("A/D or stick: move · Space/A: jump (again in the air: double jump) · S/down: drop · " +
 		"Q/Y: wave · C: camera · T: timer · Esc: menu", 13, MUTED)
 	controls.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -183,13 +191,19 @@ func _open_file_dialog() -> void:
 		_dialog = FileDialog.new()
 		_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 		_dialog.access = FileDialog.ACCESS_FILESYSTEM
-		_dialog.filters = PackedStringArray(["*.pptx ; PowerPoint presentations"])
+		_dialog.filters = PackedStringArray([
+			"*.pptx, *.odp, *.pdf ; Presentations",
+			"*.pptx ; PowerPoint",
+			"*.odp ; OpenDocument",
+			"*.pdf ; PDF (exported slides)",
+		])
 		_dialog.use_native_dialog = true
 		_dialog.title = "Choose a presentation"
 		_dialog.current_dir = GameSettings.deck_path.get_base_dir() if GameSettings.deck_path != "" \
 			else OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
 		_dialog.file_selected.connect(func(path: String) -> void:
 			GameSettings.deck_path = path
+			_notice.visible = false
 			_refresh_file_label())
 		_dialog.process_mode = Node.PROCESS_MODE_ALWAYS
 		add_child(_dialog)
@@ -198,6 +212,11 @@ func _open_file_dialog() -> void:
 func _on_start_pressed() -> void:
 	if in_session and GameSettings.session_matches_choices():
 		resume_requested.emit()
+		return
+	var blocked: String = PresentationParser.unmet_requirement(GameSettings.deck_path)
+	if blocked != "":
+		_notice.text = blocked
+		_notice.visible = true
 		return
 	get_tree().paused = false
 	get_tree().change_scene_to_file(COURSE_SCENE)
@@ -232,7 +251,7 @@ func _has_dev_decks() -> bool:
 	if dir == null:
 		return false
 	for f in dir.get_files():
-		if f.to_lower().ends_with(".pptx"):
+		if PresentationParser.is_supported(f):
 			return true
 	return false
 

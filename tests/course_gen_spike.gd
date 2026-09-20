@@ -6,7 +6,7 @@ extends SceneTree
 ## renderer measures real text lines.
 ## Run with: godot --headless -s res://tests/course_gen_spike.gd
 
-const PptxParser = preload("res://presentation_import/pptx_parser.gd")
+const PresentationParser = preload("res://presentation_import/presentation_parser.gd")
 const CourseGenerator = preload("res://course_generation/course_generator.gd")
 const CourseModel = preload("res://course_generation/course_model.gd")
 const Reachability = preload("res://course_generation/reachability.gd")
@@ -17,14 +17,18 @@ func _initialize() -> void:
 		print("No presentations_testing/ directory found.")
 		quit()
 		return
+	var files: Array[String] = []
 	for f in dir.get_files():
-		if f.to_lower().ends_with(".pptx"):
-			_report("res://presentations_testing/".path_join(f))
+		if PresentationParser.is_supported(f):
+			files.append(f)
+	files.sort()
+	for f in files:
+		_report("res://presentations_testing/".path_join(f))
 	quit()
 
 func _report(path: String) -> void:
 	print("==== ", path.get_file(), " ====")
-	var deck = PptxParser.parse(path)
+	var deck = PresentationParser.parse(path)
 	var scale: float = CourseGenerator.presentation_scale(deck)
 	var walkables: Array = []
 	for m in deck.slides:

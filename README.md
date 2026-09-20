@@ -4,19 +4,22 @@
 
 **[⬇ Download the latest release](https://github.com/majakk/SlideWalker/releases/latest)** — Windows, macOS and Linux.
 
-SlideWalker turns a PowerPoint deck into a 2D platformer. Open a `.pptx` file, pick a course
-type, and your slides become the level: every text line, title and image is a real, walkable
-ledge, laid out exactly as the deck's author placed it. Giving the presentation *is* walking,
-jumping and climbing through it.
+SlideWalker turns a presentation into a 2D platformer. Open a `.pptx`, `.odp` or `.pdf` file, pick
+a course type, and your slides become the level: every text line, title and image is a real,
+walkable ledge, laid out exactly as the deck's author placed it. Giving the presentation *is*
+walking, jumping and climbing through it.
 
-Built with [Godot 4.7](https://godotengine.org/), in GDScript, with no external dependencies for
-parsing — `.pptx` files are read directly with Godot's built-in `ZIPReader`/`XMLParser`.
+Built with [Godot 4.7](https://godotengine.org/), in GDScript. PowerPoint and OpenDocument files
+are read directly with Godot's built-in `ZIPReader`/`XMLParser`, with no external dependencies.
 
 ## Features
 
+- **Three formats.** `.pptx` (PowerPoint, Google Slides exports), `.odp` (OpenDocument /
+  LibreOffice Impress) and `.pdf` (a deck exported to PDF — one page per slide).
 - **Faithful slide rendering.** Text styles, bullets, colors, fonts, images (with crop/rotation),
   shapes and backgrounds are read straight from the deck, following its slide → layout → master →
-  theme chain — including inherited placeholder styles and theme colors.
+  theme chain — including inherited placeholder styles and theme colors. PDFs instead show each
+  page exactly as its exporter rendered it, with the ledges taken from the page's text layer.
 - **Four course types**, picked in the start menu:
   - **Side-scroller** — slides left to right on one continuous floor.
   - **Climb up** — slides stacked bottom to top; jump through each slide's floor into the next.
@@ -84,9 +87,15 @@ regenerates it automatically.
 
 ## Current limitations
 
-- Only `.pptx` is supported for now (no `.odp`).
+- **PDF needs [poppler-utils](https://poppler.freedesktop.org/)** (`pdftoppm` and `pdftotext`)
+  installed and on your `PATH` — it's preinstalled on most Linux distributions, and available via
+  Homebrew (`brew install poppler`) on macOS or the Windows poppler builds. `.pptx` and `.odp` need
+  nothing extra. A PDF made from scanned pages (no text layer) still renders, but only its floor is
+  walkable, since there are no text lines to turn into ledges.
 - Embedded video, animated GIFs, and click-to-reveal builds aren't played back yet.
 - Tables render as an outline rather than their actual cell content.
+- In `.odp` files, gradient and pattern fills fall back to a flat color, and custom shape geometry
+  renders as its bounding rectangle.
 
 ## Credits
 

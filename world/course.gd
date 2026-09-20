@@ -5,7 +5,7 @@ extends Node2D
 ## F3 shows ledges. Esc pauses and opens the menu over the presentation
 ## (Resume continues right where you were).
 
-const PptxParser = preload("res://presentation_import/pptx_parser.gd")
+const PresentationParser = preload("res://presentation_import/presentation_parser.gd")
 const CourseGenerator = preload("res://course_generation/course_generator.gd")
 const CourseModel = preload("res://course_generation/course_model.gd")
 const SlideContentRenderer = preload("res://world/slide_content_renderer.gd")
@@ -48,15 +48,16 @@ func _ready() -> void:
 	if deck_path == "":
 		var decks: Array[String] = _find_dev_decks()
 		if decks.is_empty():
-			push_warning("No presentation chosen and no .pptx files in %s" % DECK_DIR)
+			push_warning("No presentation chosen and no presentations in %s" % DECK_DIR)
 			return
 		deck_path = decks[deck_index % decks.size()]
 	var mode: int = GameSettings.course_layout
 
 	var t0: int = Time.get_ticks_msec()
-	var deck = PptxParser.parse(deck_path)
+	var deck = PresentationParser.parse(deck_path)
 	if deck.slides.is_empty():
 		push_warning("Could not read any slides from %s" % deck_path)
+		_show_load_failure(deck_path)
 		return
 	var px_per_cm: float = CourseGenerator.presentation_scale(deck)
 	var slide_rects: Array[Rect2] = CourseGenerator.place_slides(CourseGenerator.slide_sizes(deck, px_per_cm), mode)
@@ -140,6 +141,26 @@ func _build_hud() -> void:
 	_timer_label.visible = GameSettings.show_timer
 	hud.add_child(_timer_label)
 
+## Nothing to walk on, so say why rather than leaving an empty world up.
+func _show_load_failure(deck_path: String) -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 5
+	add_child(layer)
+	var reason: String = PresentationParser.unmet_requirement(deck_path)
+	if reason == "":
+		reason = "Could not read any slides from this file."
+	var label := Label.new()
+	label.text = "%s\n\n%s\n\nPress Esc for the menu." % [deck_path.get_file(), reason]
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_color_override("font_color", HUD_COLOR)
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.offset_left = 120.0
+	label.offset_right = -120.0
+	layer.add_child(label)
+
 func _open_menu() -> void:
 	get_tree().paused = true
 	_menu_layer = CanvasLayer.new()
@@ -204,7 +225,7 @@ func _find_dev_decks() -> Array[String]:
 	if dir == null:
 		return out
 	for f in dir.get_files():
-		if f.to_lower().ends_with(".pptx"):
+		if PresentationParser.is_supported(f):
 			out.append(DECK_DIR.path_join(f))
 	out.sort()
 	return out

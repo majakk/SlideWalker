@@ -5,6 +5,7 @@ extends RefCounted
 ## each slide's walkable rectangles (slide-local px) for course generation.
 
 const PresentationModel = preload("res://presentation_import/presentation_model.gd")
+const PresentationParser = preload("res://presentation_import/presentation_parser.gd")
 const CourseGenerator = preload("res://course_generation/course_generator.gd")
 const ShapeView = preload("res://world/shape_view.gd")
 const TextBoxView = preload("res://world/text_box_view.gd")
@@ -13,14 +14,23 @@ const UNSUPPORTED_FILL := Color(0.85, 0.86, 0.88)
 
 var px_per_cm: float = 1.0
 var _zip := ZIPReader.new()
+var _zip_open: bool = false
+## pdf decks reference rasterized pages on disk instead of zip entries.
+var _filesystem_images: bool = false
 var _textures: Dictionary = {}
 
 func open(deck_path: String, scale_px_per_cm: float) -> bool:
 	px_per_cm = scale_px_per_cm
-	return _zip.open(deck_path) == OK
+	_filesystem_images = PresentationParser.uses_filesystem_images(deck_path)
+	if _filesystem_images:
+		return true
+	_zip_open = _zip.open(deck_path) == OK
+	return _zip_open
 
 func close() -> void:
-	_zip.close()
+	if _zip_open:
+		_zip.close()
+		_zip_open = false
 
 func render_slide(parent: Node, manifest: PresentationModel.SlideManifest, rect: Rect2) -> Array[Rect2]:
 	var card := Panel.new()
@@ -123,26 +133,33 @@ func _texture_rect(tex: Texture2D, box: Rect2) -> TextureRect:
 func _texture(ref: String) -> Texture2D:
 	if _textures.has(ref):
 		return _textures[ref]
+	var img: Image = _load_image(ref)
 	var tex: Texture2D = null
-	if _zip.file_exists(ref):
-		var bytes: PackedByteArray = _zip.read_file(ref)
-		var img := Image.new()
-		var err: int = FAILED
-		match ref.get_extension().to_lower():
-			"png":
-				err = img.load_png_from_buffer(bytes)
-			"jpg", "jpeg":
-				err = img.load_jpg_from_buffer(bytes)
-			"webp":
-				err = img.load_webp_from_buffer(bytes)
-			"bmp":
-				err = img.load_bmp_from_buffer(bytes)
-			"tga":
-				err = img.load_tga_from_buffer(bytes)
-			"svg":
-				err = img.load_svg_from_buffer(bytes)
-		if err == OK:
-			img.generate_mipmaps()
-			tex = ImageTexture.create_from_image(img)
+	if img:
+		img.generate_mipmaps()
+		tex = ImageTexture.create_from_image(img)
 	_textures[ref] = tex
 	return tex
+
+func _load_image(ref: String) -> Image:
+	var img := Image.new()
+	if _filesystem_images:
+		return img if img.load(ref) == OK else null
+	if not _zip.file_exists(ref):
+		return null
+	var bytes: PackedByteArray = _zip.read_file(ref)
+	var err: int = FAILED
+	match ref.get_extension().to_lower():
+		"png":
+			err = img.load_png_from_buffer(bytes)
+		"jpg", "jpeg":
+			err = img.load_jpg_from_buffer(bytes)
+		"webp":
+			err = img.load_webp_from_buffer(bytes)
+		"bmp":
+			err = img.load_bmp_from_buffer(bytes)
+		"tga":
+			err = img.load_tga_from_buffer(bytes)
+		"svg":
+			err = img.load_svg_from_buffer(bytes)
+	return img if err == OK else null
