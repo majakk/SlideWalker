@@ -31,7 +31,7 @@ are read directly with Godot's built-in `ZIPReader`/`XMLParser`, with no externa
   top of the tallest slide.
 - **A completability guarantee.** Every course has a solid floor (or, in climb/drop, a floor per
   slide) underneath the content, so a missed jump is never a dead end.
-- **Assist platforms**, toggled with **H**: three invisible full-width ledges across every slide,
+- **Assist platforms**, toggled with **H** (controller: **B**): three invisible full-width ledges across every slide,
   off by default, for when you just want to get to a particular spot without working out the
   route. They're never drawn, and never affect how high the jump is tuned.
 - **Links you can walk up to.** Anything the deck links somewhere — a source URL, or the still
