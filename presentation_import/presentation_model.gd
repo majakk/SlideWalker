@@ -66,12 +66,21 @@ class ShapeRect:
 	## each 0..1, from <a:srcRect>.
 	var image_crop: Rect2 = Rect2(0, 0, 1, 1)
 
+	## External URL this shape links to, if any - the shape's own hyperlink,
+	## or failing that the first one on its text. Decks routinely use an image
+	## of a video as the link to it, which is what makes this worth carrying.
+	var link_url: String = ""
+
 	var paragraphs: Array[Paragraph] = []
 	## "t", "ctr", "b"
 	var text_anchor: String = "t"
 	## left, top, right, bottom insets in cm.
 	var text_insets: Vector4 = Vector4(0.254, 0.127, 0.254, 0.127)
 	var text_wrap: bool = true
+	## The deck asks for text to shrink rather than overflow this frame
+	## (PowerPoint's "Shrink text on overflow"). Off means the author let it
+	## overflow, which is normal for titles, so it's left alone.
+	var text_autofit: bool = false
 	var text_summary: String = ""
 
 	func has_visible_text() -> bool:

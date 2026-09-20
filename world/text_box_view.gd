@@ -16,6 +16,17 @@ const PT_TO_CM: float = 2.54 / 72.0
 const PPT_LINE_HEIGHT: float = 1.2
 ## Cap height as a fraction of font size (Arial/Liberation Sans ~0.716).
 const CAP_HEIGHT_FRACTION: float = 0.72
+## Font sizes are whole pixels, so at presentation scale an 18pt run wanting
+## 29.5px renders at 30 - 1.7% wide, which is enough to drop the last word of
+## a line that fit in the original. Text is laid out at this multiple and the
+## whole block scaled back down, which cuts that error to a few tenths of a
+## percent and keeps our line breaks where the deck's author saw them.
+const LAYOUT_SUPERSAMPLE: float = 4.0
+
+## How far text may be shrunk to fit its own frame before it's left to clip,
+## and how many passes that takes (each pass re-wraps, which changes height).
+const MIN_FIT_SCALE: float = 0.55
+const FIT_PASSES: int = 3
 
 ## In this view's local px.
 var line_rects: Array[Rect2] = []
@@ -25,17 +36,51 @@ var _px_per_cm: float = 1.0
 var _content: Control
 ## [{"root": Control, "body": RichTextLabel, "para": Paragraph}]
 var _blocks: Array = []
+## Shrink-to-fit factor on every font size, as PowerPoint's own autofit does.
+var _fit_scale: float = 1.0
+var _content_height: float = 0.0
 
 ## Call once the view is in the tree and sized to the shape's frame.
 func build(shape: PresentationModel.ShapeRect, px_per_cm: float) -> void:
 	_shape = shape
 	_px_per_cm = px_per_cm
 	mouse_filter = MOUSE_FILTER_IGNORE
+	_build_blocks()
+	layout_text()
+	_shrink_to_fit()
+
+## Only for frames whose deck asks for "shrink text on overflow": a uniform
+## scale inside the shape's own frame, which moves nothing. Re-wrapping at the
+## smaller size changes the height again, hence the passes. Frames that don't
+## ask for it are left to overflow exactly as the author had them - titles
+## routinely sit in a frame shorter than the title itself.
+func _shrink_to_fit() -> void:
+	if not _shape.text_autofit:
+		return
+	var inner_h: float = size.y - (_shape.text_insets.y + _shape.text_insets.w) * _px_per_cm
+	if inner_h <= 0.0:
+		return
+	for _pass in range(FIT_PASSES):
+		if _content_height <= inner_h or _fit_scale <= MIN_FIT_SCALE:
+			return
+		_fit_scale = max(MIN_FIT_SCALE, _fit_scale * inner_h / _content_height)
+		remove_child(_content)
+		_content.queue_free()
+		_blocks.clear()
+		_build_blocks()
+		layout_text()
+
+## Everything inside _content is laid out in supersampled px; _content's own
+## scale brings it back to view px. Only _content.position is in view px.
+func _build_blocks() -> void:
+	var shape: PresentationModel.ShapeRect = _shape
+	var px_per_cm: float = _px_per_cm * LAYOUT_SUPERSAMPLE
 	_content = Control.new()
 	_content.mouse_filter = MOUSE_FILTER_IGNORE
+	_content.scale = Vector2.ONE / LAYOUT_SUPERSAMPLE
 	add_child(_content)
 
-	var inner_w: float = max(1.0, size.x - (shape.text_insets.x + shape.text_insets.z) * px_per_cm)
+	var inner_w: float = max(1.0, (size.x - (shape.text_insets.x + shape.text_insets.z) * _px_per_cm) * LAYOUT_SUPERSAMPLE)
 	for para in shape.paragraphs:
 		var root := Control.new()
 		root.mouse_filter = MOUSE_FILTER_IGNORE
@@ -49,7 +94,14 @@ func build(shape: PresentationModel.ShapeRect, px_per_cm: float) -> void:
 		body.clip_contents = false
 		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if shape.text_wrap else TextServer.AUTOWRAP_OFF
 		body.position = Vector2(indent_px, 0.0)
-		body.size = Vector2(max(1.0, inner_w - indent_px), 0.0)
+		# Godot counts a wrapped line's trailing space against the width,
+		# where the authoring apps let it hang past the margin - without this
+		# allowance a line that just fits loses its last word, which cascades
+		# into an extra line and text pushed out of the frame.
+		var first_run: PresentationModel.TextRun = para.runs[0]
+		var space_px: float = FontCache.get_font(first_run.font_family, first_run.bold, first_run.italic) \
+			.get_string_size(" ", HORIZONTAL_ALIGNMENT_LEFT, -1, _px(first_run.size_pt)).x
+		body.size = Vector2(max(1.0, inner_w - indent_px + space_px), 0.0)
 		root.add_child(body)
 		_fill(body, para)
 
@@ -77,11 +129,13 @@ func layout_text() -> void:
 		var block: Dictionary = _blocks[i]
 		var para: PresentationModel.Paragraph = block["para"]
 		if i > 0:
-			y += para.space_before_pt * PT_TO_CM * _px_per_cm
+			y += para.space_before_pt * _fit_scale * PT_TO_CM * _px_per_cm * LAYOUT_SUPERSAMPLE
 		(block["root"] as Control).position = Vector2(0.0, y)
 		tops.append(y)
 		y += (block["body"] as RichTextLabel).get_content_height()
-	var total: float = y
+	# y is supersampled; everything outside _content works in view px.
+	var total: float = y / LAYOUT_SUPERSAMPLE
+	_content_height = total
 
 	var offset: float = 0.0
 	match _shape.text_anchor:
@@ -102,7 +156,8 @@ func layout_text() -> void:
 		var px: int = _px(first.size_pt)
 		var cap_drop: float = FontCache.get_font(first.font_family, first.bold, first.italic).get_ascent(px) \
 			- px * CAP_HEIGHT_FRACTION
-		var block_origin: Vector2 = _content.position + Vector2(body.position.x, tops[i])
+		var block_origin: Vector2 = _content.position \
+			+ Vector2(body.position.x, tops[i]) / LAYOUT_SUPERSAMPLE
 		for line in range(body.get_line_count()):
 			var w: float = body.get_line_width(line)
 			if w <= 0.0:
@@ -114,11 +169,14 @@ func layout_text() -> void:
 				"r":
 					x0 = body.size.x - w
 			if line == 0 and para.bullet != "":
-				var bullet_x: float = para.first_line_indent_cm * _px_per_cm
+				var bullet_x: float = para.first_line_indent_cm * _px_per_cm * LAYOUT_SUPERSAMPLE
 				w += x0 - min(x0, bullet_x)
 				x0 = min(x0, bullet_x)
 			var top: float = body.get_line_offset(line) + cap_drop
-			line_rects.append(Rect2(block_origin + Vector2(x0, top), Vector2(w, body.get_line_height(line) - cap_drop)))
+			# Measured supersampled, reported in view px like the rest.
+			line_rects.append(Rect2(
+				block_origin + Vector2(x0, top) / LAYOUT_SUPERSAMPLE,
+				Vector2(w, body.get_line_height(line) - cap_drop) / LAYOUT_SUPERSAMPLE))
 
 func _fill(body: RichTextLabel, para: PresentationModel.Paragraph) -> void:
 	var first: PresentationModel.TextRun = para.runs[0]
@@ -164,5 +222,6 @@ func _has_text(para: PresentationModel.Paragraph) -> bool:
 			return true
 	return false
 
+## Font size in supersampled px - every glyph lives inside _content.
 func _px(size_pt: float) -> int:
-	return max(1, int(round(size_pt * PT_TO_CM * _px_per_cm)))
+	return max(1, int(round(size_pt * _fit_scale * PT_TO_CM * _px_per_cm * LAYOUT_SUPERSAMPLE)))

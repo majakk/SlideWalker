@@ -31,6 +31,14 @@ are read directly with Godot's built-in `ZIPReader`/`XMLParser`, with no externa
   top of the tallest slide.
 - **A completability guarantee.** Every course has a solid floor (or, in climb/drop, a floor per
   slide) underneath the content, so a missed jump is never a dead end.
+- **Assist platforms**, toggled with **H**: three invisible full-width ledges across every slide,
+  off by default, for when you just want to get to a particular spot without working out the
+  route. They're never drawn, and never affect how high the jump is tuned.
+- **Links you can walk up to.** Anything the deck links somewhere — a source URL, or the still
+  image standing in for a video — is highlighted when you reach it, and **E** (controller: **X**)
+  opens it. Links to YouTube, Vimeo and PeerTube are recognised, so the prompt offers to play the
+  clip rather than just "open a link". Playback happens in your browser: no Godot build can play
+  those streams in-game without embedding a whole browser engine in the app.
 - **Two player styles** — a procedurally animated stick figure, or the classic
   Brackeys pixel-art knight — both with run, jump, double-jump, wave, and skid/landing dust.
 - **Two camera modes** — frame one slide at a time with a pan on transitions, or scroll seamlessly
@@ -47,7 +55,8 @@ are read directly with Godot's built-in `ZIPReader`/`XMLParser`, with no externa
 | Jump (again in the air: double jump) | Space | A |
 | Drop through the current ledge | S / Down | Down |
 | Wave | Q | Y |
-| Interact (slide links/media) | E | X |
+| Open the link you're standing at | E | X |
+| Toggle assist platforms | H | — |
 | Toggle camera mode | C | — |
 | Toggle timer | T | — |
 | Pause / resume | Esc | — |
@@ -85,13 +94,30 @@ These builds aren't code-signed. On first launch:
 Godot's own import cache (`.godot/`) isn't committed. The first time you open the project, Godot
 regenerates it automatically.
 
+## Opening PDFs: install poppler
+
+`.pptx` and `.odp` files need nothing beyond SlideWalker itself. **PDFs need
+[poppler](https://poppler.freedesktop.org/)**, which SlideWalker uses to render each page and read
+its text layer. It isn't bundled — poppler is GPL-licensed, and most Linux machines already have
+it. SlideWalker looks for poppler on your `PATH` and in the usual install locations, and tells you
+in the start menu if it can't find it.
+
+| | |
+|---|---|
+| **Windows** | `winget install oschwartz10612.Poppler` — or `scoop install poppler`, or `choco install poppler`. Restart SlideWalker afterwards so it picks up the new `PATH`. |
+| **macOS** | `brew install poppler` ([Homebrew](https://brew.sh)), or `sudo port install poppler` with MacPorts. |
+| **Debian / Ubuntu / Mint** | `sudo apt install poppler-utils` |
+| **Fedora / RHEL** | `sudo dnf install poppler-utils` |
+| **Arch / Manjaro** | `sudo pacman -S poppler` |
+
+To check it worked, run `pdftoppm -v` in a terminal — it should print a poppler version.
+
 ## Current limitations
 
-- **PDF needs [poppler-utils](https://poppler.freedesktop.org/)** (`pdftoppm` and `pdftotext`)
-  installed and on your `PATH` — it's preinstalled on most Linux distributions, and available via
-  Homebrew (`brew install poppler`) on macOS or the Windows poppler builds. `.pptx` and `.odp` need
-  nothing extra. A PDF made from scanned pages (no text layer) still renders, but only its floor is
-  walkable, since there are no text lines to turn into ledges.
+- A PDF made from scanned pages has no text layer, so it renders fine but only its floor is
+  walkable — there are no text lines to turn into ledges.
+- In a PDF, a link anchored to a picture (a video thumbnail, say) isn't picked up; links on text
+  are. `.pptx` and `.odp` files have both.
 - Embedded video, animated GIFs, and click-to-reveal builds aren't played back yet.
 - Tables render as an outline rather than their actual cell content.
 - In `.odp` files, gradient and pattern fills fall back to a flat color, and custom shape geometry

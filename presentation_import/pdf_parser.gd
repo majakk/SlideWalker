@@ -33,13 +33,46 @@ const RASTER_DPI: int = 200
 ## metric fonts, ascender-to-cap is ~0.19em of a ~1.12em line box.
 const CAP_DROP_FRACTION: float = 0.17
 
-const MISSING_POPPLER_MESSAGE := "PDF files need poppler-utils (pdftoppm and pdftotext) installed and on your PATH. " \
-	+ "Most Linux distributions ship it; on macOS use \"brew install poppler\". .pptx and .odp files work without it."
+const MISSING_POPPLER_MESSAGE := "PDF files need poppler (pdftoppm and pdftotext) installed. " \
+	+ "macOS: \"brew install poppler\". Windows: \"winget install oschwartz10612.Poppler\". " \
+	+ "Most Linux distributions already ship it. .pptx and .odp files need nothing extra."
+
+## An app launched from the macOS Finder or a Windows shortcut gets a minimal
+## PATH that has none of the usual package-manager locations in it, so a
+## PATH lookup alone would report poppler missing on a machine that has it.
+const TOOL_SEARCH_PATHS := [
+	"/opt/homebrew/bin",  # Homebrew, Apple Silicon
+	"/usr/local/bin",  # Homebrew on Intel, and most from-source installs
+	"/opt/local/bin",  # MacPorts
+	"/usr/bin",
+	"/snap/bin",
+]
+
+static var _resolved_tools: Dictionary = {}
 
 ## Checked before starting a course so the menu can explain the one external
 ## dependency SlideWalker has, instead of opening an empty presentation.
 static func poppler_missing() -> bool:
-	return not _tool_available("pdftoppm") or not _tool_available("pdftotext")
+	return _resolve_tool("pdftoppm") == "" or _resolve_tool("pdftotext") == ""
+
+## The command to run this tool with: its bare name when the PATH has it,
+## otherwise an absolute path, or "" when it isn't installed at all.
+static func _resolve_tool(tool_name: String) -> String:
+	if _resolved_tools.has(tool_name):
+		return _resolved_tools[tool_name]
+	var found: String = ""
+	var out: Array = []
+	var finder: String = "where" if OS.get_name() == "Windows" else "which"
+	if _exec(finder, [tool_name], out) == 0 and not out.is_empty() and String(out[0]).strip_edges() != "":
+		found = tool_name
+	else:
+		for dir in TOOL_SEARCH_PATHS:
+			var candidate: String = String(dir).path_join(tool_name)
+			if FileAccess.file_exists(candidate):
+				found = candidate
+				break
+	_resolved_tools[tool_name] = found
+	return found
 
 static func parse(path: String) -> PresentationModel.SlideDeck:
 	var deck := PresentationModel.SlideDeck.new()
@@ -48,6 +81,7 @@ static func parse(path: String) -> PresentationModel.SlideDeck:
 	if poppler_missing():
 		push_warning("PdfParser: %s" % MISSING_POPPLER_MESSAGE)
 		return deck
+	# Windows ships no poppler, so the message above sends people to winget.
 
 	var real_path: String = ProjectSettings.globalize_path(path)
 	var page_images: Array[String] = _rasterize(real_path)
@@ -58,15 +92,46 @@ static func parse(path: String) -> PresentationModel.SlideDeck:
 	var bbox_xml: String = _run_capture("pdftotext", ["-bbox-layout", real_path, "-"])
 	var doc_tree: Dictionary = _extract_doc_tree(bbox_xml)
 	var pages: Array = ZipXmlUtils.find_all(doc_tree, "page")
+	var links: Array = _page_links(real_path)
 
 	for i in range(page_images.size()):
 		var page_node: Dictionary = pages[i] if i < pages.size() else {}
-		deck.slides.append(_build_slide(deck.slides.size() + 1, page_images[i], page_node))
+		deck.slides.append(_build_slide(deck.slides.size() + 1, page_images[i], page_node,
+			links[i] if i < links.size() else []))
 	return deck
 
-static func _tool_available(tool_name: String) -> bool:
+## Hyperlinks per page, as [{"rect": Rect2 (pt), "url": String}]. pdftotext's
+## bbox output has no links in it, but pdftohtml reports them inline with the
+## text they sit on, in the same point-space - so they can be matched onto
+## the ledges by position. A link anchored to a picture rather than to text
+## (a video thumbnail, say) has nothing to attach to there, so those are
+## missed; they'd need the PDF's own annotation table.
+static func _page_links(real_path: String) -> Array:
+	# -i skips image extraction, which otherwise writes files next to the pdf.
+	var xml: String = _run_capture("pdftohtml", ["-xml", "-zoom", "1", "-i", "-q", "-stdout", real_path])
+	var start: int = xml.find("<pdf2xml")
+	var end: int = xml.find("</pdf2xml>")
+	if start == -1 or end == -1:
+		return []
+	var tree: Dictionary = ZipXmlUtils.parse_xml_tree(
+		xml.substr(start, end - start + "</pdf2xml>".length()).to_utf8_buffer())
 	var out: Array = []
-	return _exec("which", [tool_name], out) == 0 and not out.is_empty()
+	for page in ZipXmlUtils.direct_children(tree, "page"):
+		var page_links: Array = []
+		for text in ZipXmlUtils.find_all(page, "text"):
+			var attrs: Dictionary = (text as Dictionary).get("attrs", {})
+			for anchor in ZipXmlUtils.find_all(text, "a"):
+				var href: String = (anchor as Dictionary).get("attrs", {}).get("href", "")
+				if href == "":
+					continue
+				page_links.append({
+					"rect": Rect2(float(attrs.get("left", "0")), float(attrs.get("top", "0")),
+						float(attrs.get("width", "0")), float(attrs.get("height", "0"))),
+					"url": href,
+				})
+				break
+		out.append(page_links)
+	return out
 
 ## Inside a Flatpak sandbox (the Godot editor here, and SlideWalker itself if
 ## it's ever packaged as one) host binaries aren't on PATH, so poppler has to
@@ -88,7 +153,7 @@ static func _rasterize(real_path: String) -> Array[String]:
 
 	var prefix: String = cache_dir.path_join("page")
 	var out: Array = []
-	var code: int = _exec("pdftoppm", ["-r", str(RASTER_DPI), "-png", real_path, prefix], out, true)
+	var code: int = _exec(_resolve_tool("pdftoppm"), ["-r", str(RASTER_DPI), "-png", real_path, prefix], out, true)
 	if code != 0:
 		push_warning("PdfParser: pdftoppm failed (%d): %s" % [code, "".join(out)])
 		return []
@@ -142,8 +207,11 @@ static func _page_number(file_path: String) -> int:
 	return digits.to_int()
 
 static func _run_capture(tool_name: String, args: PackedStringArray) -> String:
+	var resolved: String = _resolve_tool(tool_name)
+	if resolved == "":
+		return ""
 	var out: Array = []
-	_exec(tool_name, args, out)
+	_exec(resolved, args, out)
 	return "".join(out) if not out.is_empty() else ""
 
 ## pdftotext -bbox-layout wraps the useful <doc>...</doc> in an XHTML shell
@@ -156,7 +224,7 @@ static func _extract_doc_tree(bbox_xml: String) -> Dictionary:
 		return {}
 	return ZipXmlUtils.parse_xml_tree((bbox_xml.substr(start, end - start + "</doc>".length())).to_utf8_buffer())
 
-static func _build_slide(slide_index: int, image_path: String, page_node: Dictionary) -> PresentationModel.SlideManifest:
+static func _build_slide(slide_index: int, image_path: String, page_node: Dictionary, page_links: Array) -> PresentationModel.SlideManifest:
 	var manifest := PresentationModel.SlideManifest.new()
 	manifest.slide_id = slide_index
 
@@ -198,8 +266,23 @@ static func _build_slide(slide_index: int, image_path: String, page_node: Dictio
 		ledge.h = (y_max - y_min - cap_drop) * CM_PER_PT
 		ledge.z_order = z
 		z += 1
+		ledge.link_url = _link_on(page_links, Rect2(x_min, y_min, x_max - x_min, y_max - y_min))
 		# Intentionally no paragraphs/text_summary: the raster image already
 		# shows the real glyphs, this shape exists purely as a ledge.
 		manifest.shapes.append(ledge)
 
 	return manifest
+
+## The link whose own box overlaps this line's most. The two extractions
+## report slightly different boxes for the same text, so this is an overlap
+## test rather than a match.
+static func _link_on(page_links: Array, line_pt: Rect2) -> String:
+	var best_url: String = ""
+	var best_area: float = 0.0
+	for link in page_links:
+		var overlap: Rect2 = (link["rect"] as Rect2).intersection(line_pt)
+		var area: float = overlap.size.x * overlap.size.y
+		if area > best_area:
+			best_area = area
+			best_url = link["url"]
+	return best_url

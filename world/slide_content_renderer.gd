@@ -13,6 +13,9 @@ const TextBoxView = preload("res://world/text_box_view.gd")
 const UNSUPPORTED_FILL := Color(0.85, 0.86, 0.88)
 
 var px_per_cm: float = 1.0
+## Shapes that link somewhere, as [{"rect": Rect2 (world px), "url": String}],
+## collected while rendering for interact_zones.gd.
+var link_targets: Array = []
 var _zip := ZIPReader.new()
 var _zip_open: bool = false
 ## pdf decks reference rasterized pages on disk instead of zip entries.
@@ -82,6 +85,9 @@ func render_slide(parent: Node, manifest: PresentationModel.SlideManifest, rect:
 					shape_walkables.clear()
 					for line in text.line_rects:
 						shape_walkables.append(Rect2(box.position + line.position, line.size))
+
+		if shape.link_url != "":
+			link_targets.append({"rect": Rect2(rect.position + box.position, box.size), "url": shape.link_url})
 
 		if CourseGenerator.is_platform_shape(shape):
 			walkables.append_array(shape_walkables)

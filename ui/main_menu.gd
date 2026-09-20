@@ -161,7 +161,7 @@ func _ready() -> void:
 	col.add_child(_notice)
 
 	var controls := _label("A/D or stick: move · Space/A: jump (again in the air: double jump) · S/down: drop · " +
-		"Q/Y: wave · C: camera · T: timer · Esc: menu", 13, MUTED)
+		"Q/Y: wave · E/X: open a link · H: assist platforms · C: camera · T: timer · Esc: menu", 13, MUTED)
 	controls.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	controls.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(controls)

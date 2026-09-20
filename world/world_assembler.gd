@@ -4,6 +4,9 @@ extends RefCounted
 ## an optional debug overlay. Stage areas are drawn under the slides, helper
 ## rungs (outside slides) are drawn as small stage-colored bars, and walls
 ## close off the course's sides.
+##
+## Assist rungs go under their own node with collision switched off, for
+## course.gd to turn on and off.
 
 const CourseModel = preload("res://course_generation/course_model.gd")
 
@@ -13,6 +16,9 @@ const RUNG_COLOR := Color(0.36, 0.4, 0.46)
 const LEDGE_THICKNESS_PX: float = 12.0
 const SOLID_THICKNESS_PX: float = 200.0
 const DEBUG_COLOR := Color(1.0, 0.2, 0.5, 0.85)
+const ASSIST_DEBUG_COLOR := Color(0.2, 0.85, 1.0, 0.85)
+## Node holding the presenter's assist rungs, looked up by name to toggle.
+const ASSIST_ROOT_NAME := "AssistPlatforms"
 const SLIDE_NUMBER_COLOR := Color(0.72, 0.76, 0.82)
 const SLIDE_NUMBER_SIZE: int = 20
 ## Physics layers: solid floor and walls on 1, one-way platforms on 2 (the
@@ -51,6 +57,29 @@ static func assemble(parent: Node2D, layout: CourseModel.Layout) -> Node2D:
 		line.points = PackedVector2Array([Vector2(platform.x, platform.y), Vector2(platform.x + platform.width, platform.y)])
 		line.width = 3.0
 		line.default_color = DEBUG_COLOR
+		debug.add_child(line)
+
+	# Assist rungs: built with collision off, switched on by the presenter,
+	# and never drawn - only the debug overlay shows where they are.
+	var assist := Node2D.new()
+	assist.name = ASSIST_ROOT_NAME
+	parent.add_child(assist)
+	for platform in layout.assist_platforms:
+		var body := StaticBody2D.new()
+		body.collision_layer = 0
+		body.position = Vector2(platform.x + platform.width * 0.5, platform.y + LEDGE_THICKNESS_PX * 0.5)
+		var shape := RectangleShape2D.new()
+		shape.size = Vector2(platform.width, LEDGE_THICKNESS_PX)
+		var collision := CollisionShape2D.new()
+		collision.shape = shape
+		collision.one_way_collision = true
+		body.add_child(collision)
+		assist.add_child(body)
+
+		var line := Line2D.new()
+		line.points = PackedVector2Array([Vector2(platform.x, platform.y), Vector2(platform.x + platform.width, platform.y)])
+		line.width = 3.0
+		line.default_color = ASSIST_DEBUG_COLOR
 		debug.add_child(line)
 
 	# Slide numbers, centered under each slide in the stage.

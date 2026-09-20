@@ -4,6 +4,10 @@ extends RefCounted
 ## state. Both .pptx and .odp are zip archives of XML, so this is the one
 ## piece of plumbing both formats share.
 
+## Character data appears both in its element's "text" and, in document
+## order among the element's children, as a node with this tag.
+const TEXT_TAG := "#text"
+
 ## Parses an XML byte buffer into a plain tree: {tag, attrs, children, text}.
 ## Godot's XMLParser is a streaming/pull parser (not a DOM), so this walks
 ## it once and materializes an ordinary tree callers can recurse over.
@@ -40,7 +44,14 @@ static func parse_xml_tree(bytes: PackedByteArray) -> Dictionary:
 					stack.pop_back()
 			XMLParser.NODE_TEXT:
 				if not stack.is_empty():
-					stack[-1]["text"] += parser.get_node_data()
+					var data: String = parser.get_node_data()
+					stack[-1]["text"] += data
+					# Mixed content (ODF writes a run of spaces as its own
+					# <text:s/> element between text) needs the order of text
+					# and elements, which "text" alone can't express.
+					(stack[-1]["children"] as Array).append({
+						"tag": TEXT_TAG, "attrs": {}, "children": [], "text": data,
+					})
 
 	return root
 

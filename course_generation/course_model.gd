@@ -11,7 +11,8 @@ class Platform:
 	## CONTENT: top edge of slide content (a text line, image, shape).
 	## FLOOR: a slide's bottom edge / the stage. HELPER: generated climbing
 	## rungs outside the slide, only where content alone can't get you on.
-	enum Kind { CONTENT, FLOOR, HELPER }
+	## ASSIST: full-width rungs the presenter can toggle on to reach anything.
+	enum Kind { CONTENT, FLOOR, HELPER, ASSIST }
 
 	## World-space left end of the walkable top edge (px).
 	var x: float = 0.0
@@ -27,6 +28,10 @@ class Layout:
 	extends RefCounted
 
 	var platforms: Array[Platform] = []
+	## Optional full-width rungs across each slide, toggled by the presenter
+	## and never drawn. Kept out of `platforms` so jump calibration and the
+	## reachability checks only ever see what the deck itself provides.
+	var assist_platforms: Array[Platform] = []
 	## World-space rect of each slide, in deck order.
 	var slide_rects: Array[Rect2] = []
 	## Index of the platform the course starts on.

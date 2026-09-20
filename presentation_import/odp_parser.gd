@@ -180,6 +180,19 @@ static func _style_chain(doc: Doc, family: String, name: String) -> Array:
 		chain.append(doc.default_styles[family])
 	return chain
 
+## A shape's own style chain. Ordinary shapes name it with draw:style-name,
+## placeholders with presentation:style-name, and the name belongs to either
+## the graphic or the presentation family.
+static func _shape_style_chain(doc: Doc, attrs: Dictionary) -> Array:
+	for key in ["draw:style-name", "presentation:style-name"]:
+		var name: String = attrs.get(key, "")
+		if name == "":
+			continue
+		for family in ["graphic", "presentation"]:
+			if doc.styles.has("%s|%s" % [family, name]):
+				return _style_chain(doc, family, name)
+	return []
+
 static func _chain_attr(chain: Array, prop_tag: String, attr: String, fallback: String) -> String:
 	for node in chain:
 		var props: Dictionary = ZipXmlUtils.find_first(node, prop_tag)
@@ -256,6 +269,16 @@ static func _walk_shapes(container: Dictionary, transform: Dictionary, ctx: Slid
 		if tag == "draw:g":
 			_process_group(child, transform, ctx, manifest)
 			continue
+		if tag == "draw:a":
+			# A hyperlink wrapping one or more shapes: parse them normally,
+			# then hand the link down to whichever came out without one.
+			var first: int = manifest.shapes.size()
+			_walk_shapes(child, transform, ctx, manifest)
+			var href: String = child.get("attrs", {}).get("xlink:href", "")
+			for i in range(first, manifest.shapes.size()):
+				if manifest.shapes[i].link_url == "":
+					manifest.shapes[i].link_url = href
+			continue
 		if not tag in ["draw:frame", "draw:custom-shape", "draw:rect", "draw:ellipse", "draw:line", "draw:connector"]:
 			continue
 		var attrs: Dictionary = child.get("attrs", {})
@@ -290,15 +313,15 @@ static func _process_shape(node: Dictionary, tag: String, transform: Dictionary,
 	shape.z_order = ctx.z_counter
 	ctx.z_counter += 1
 
-	if tag == "draw:line":
+	# Connectors between shapes carry endpoints rather than a frame, same as
+	# a plain line; an elbow connector is approximated by its straight span.
+	if tag == "draw:line" or tag == "draw:connector":
 		_apply_line_endpoints(shape, attrs, transform)
 	else:
 		_apply_position(shape, attrs, transform, manifest, ctx)
 
-	var style_name: String = attrs.get("draw:style-name", "")
-	var chain: Array = _style_chain(ctx.doc, "graphic", style_name)
-	if chain.is_empty():
-		chain = _style_chain(ctx.doc, "presentation", style_name)
+	shape.link_url = _link_url(node)
+	var chain: Array = _shape_style_chain(ctx.doc, attrs)
 	_apply_fill_and_line(shape, chain)
 
 	match tag:
@@ -340,6 +363,8 @@ static func _maybe_parse_text(shape: PresentationModel.ShapeRect, node: Dictiona
 	if _text_container_is_empty(text_box):
 		return
 	shape.text_anchor = _anchor_from(chain)
+	shape.text_autofit = _chain_attr(chain, "style:graphic-properties", "style:shrink-to-fit", "false") == "true" \
+		or _chain_attr(chain, "style:graphic-properties", "draw:fit-to-size", "false") in ["true", "shrink-on-overflow"]
 	var pad_l: float = _len_cm(_chain_attr(chain, "style:graphic-properties", "fo:padding-left", ""))
 	var pad_t: float = _len_cm(_chain_attr(chain, "style:graphic-properties", "fo:padding-top", ""))
 	var pad_r: float = _len_cm(_chain_attr(chain, "style:graphic-properties", "fo:padding-right", ""))
@@ -349,6 +374,17 @@ static func _maybe_parse_text(shape: PresentationModel.ShapeRect, node: Dictiona
 	_parse_text_content(shape, text_box, ctx)
 	shape.type = PresentationModel.ShapeRect.Type.TEXT if shape.has_visible_text() \
 		else PresentationModel.ShapeRect.Type.SHAPE
+
+## ODF writes a shape's hyperlink as a click event listener; text hyperlinks
+## are text:a instead. Either means this shape leads somewhere.
+static func _link_url(node: Dictionary) -> String:
+	var candidates: Array = ZipXmlUtils.find_all(node, "presentation:event-listener")
+	candidates.append_array(ZipXmlUtils.find_all(node, "text:a"))
+	for candidate in candidates:
+		var href: String = (candidate as Dictionary).get("attrs", {}).get("xlink:href", "")
+		if href != "":
+			return href
+	return ""
 
 static func _text_container_is_empty(container: Dictionary) -> bool:
 	for child in container.get("children", []):
@@ -579,20 +615,22 @@ static func _collect_runs(p_node: Dictionary, p_style: String, p_chain: Array, c
 				var run := _make_run(ctx, p_chain)
 				run.text = "\t"
 				out.append(run)
-	var direct_text: String = String(p_node.get("text", ""))
-	if direct_text.strip_edges() != "" and out.is_empty():
-		var run := _make_run(ctx, p_chain)
-		run.text = direct_text
-		out.append(run)
+			ZipXmlUtils.TEXT_TAG:
+				# Text written straight into the paragraph, with no span of
+				# its own, takes the paragraph's style.
+				var run := _make_run(ctx, p_chain)
+				run.text = String(child.get("text", ""))
+				out.append(run)
 
-## Text of a span, including nested spans and hyperlinks. The parsed tree
-## keeps an element's own character data separate from its children, so this
-## can only concatenate (own text, then children) rather than reproduce exact
-## interleaved order - close enough for a ledge and the slide's text summary.
+## Text of a span, in document order: character data, runs of spaces, tabs
+## and breaks are all separate nodes, and " <text:s c=4/>Design" means four
+## spaces before the word, not after it.
 static func _span_text(span_node: Dictionary) -> String:
-	var out: String = String(span_node.get("text", ""))
+	var out: String = ""
 	for child in span_node.get("children", []):
 		match String(child.get("tag", "")):
+			ZipXmlUtils.TEXT_TAG:
+				out += String(child.get("text", ""))
 			"text:line-break":
 				out += "\n"
 			"text:s":

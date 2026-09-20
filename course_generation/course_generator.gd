@@ -24,6 +24,8 @@ const TOP_MARGIN_PX: float = 12.0
 const SIDE_MARGIN_FRACTION: float = 0.97
 ## Rotated content doesn't make a sensible flat ledge.
 const MAX_PLATFORM_ROTATION_DEG: float = 3.0
+## Rungs per slide for the presenter's toggleable "reach anything" assist.
+const ASSIST_PLATFORMS_PER_SLIDE: int = 3
 
 ## px per cm so one slide fills the screen the way a projector shows it.
 static func presentation_scale(deck: PresentationModel.SlideDeck) -> float:
@@ -86,4 +88,21 @@ static func generate(slide_rects: Array[Rect2], per_slide_walkables: Array, mode
 		_:
 			layout = sidescroll
 	layout.jump_profile = profile
+	_add_assist_platforms(layout)
 	return layout
+
+## Full slide width, evenly spaced down each slide, so anything on the slide
+## is one short hop away when the presenter switches them on. Built after
+## calibration, and kept in their own list, so the jump the deck's own
+## content asks for is never quietly lowered by them being available.
+static func _add_assist_platforms(layout: CourseModel.Layout) -> void:
+	for i in range(layout.slide_rects.size()):
+		var rect: Rect2 = layout.slide_rects[i]
+		for step in range(1, ASSIST_PLATFORMS_PER_SLIDE + 1):
+			var platform := CourseModel.Platform.new()
+			platform.x = rect.position.x
+			platform.y = rect.position.y + rect.size.y * float(step) / float(ASSIST_PLATFORMS_PER_SLIDE + 1)
+			platform.width = rect.size.x
+			platform.kind = CourseModel.Platform.Kind.ASSIST
+			platform.slide_index = i
+			layout.assist_platforms.append(platform)

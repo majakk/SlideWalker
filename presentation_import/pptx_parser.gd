@@ -272,6 +272,7 @@ static func _process_shape(node: Dictionary, tag: String, ph: Dictionary, transf
 
 	var style: Dictionary = ZipXmlUtils.find_first(node, "p:style")
 	_apply_line(shape, sp_prs, style, ctx)
+	shape.link_url = _link_url(node, part)
 
 	match tag:
 		"p:pic":
@@ -473,6 +474,7 @@ static func _apply_text(shape: PresentationModel.ShapeRect, node: Dictionary, ph
 		float(_first_attr(body_prs, "tIns", "45720")) / EMU_PER_CM,
 		float(_first_attr(body_prs, "rIns", "91440")) / EMU_PER_CM,
 		float(_first_attr(body_prs, "bIns", "45720")) / EMU_PER_CM)
+	shape.text_autofit = _wants_autofit(body_prs)
 	var autofit: Dictionary = ZipXmlUtils.find_first(body_prs[0], "a:normAutofit")
 	var font_scale: float = float(autofit.get("attrs", {}).get("fontScale", "100000")) / 100000.0
 	var spacing_reduction: float = float(autofit.get("attrs", {}).get("lnSpcReduction", "0")) / 100000.0
@@ -548,6 +550,19 @@ static func _apply_text(shape: PresentationModel.ShapeRect, node: Dictionary, ph
 			summary.append(para_text.strip_edges())
 
 	shape.text_summary = " ".join(summary)
+
+## "Shrink text on overflow" (a:normAutofit), as opposed to letting it spill
+## (a:noAutofit) or growing the shape instead (a:spAutoFit). Most specific
+## bodyPr in the slide -> layout -> master chain wins.
+static func _wants_autofit(body_prs: Array) -> bool:
+	for body_pr in body_prs:
+		for child in (body_pr as Dictionary).get("children", []):
+			match String(child.get("tag", "")):
+				"a:normAutofit":
+					return true
+				"a:noAutofit", "a:spAutoFit":
+					return false
+	return false
 
 static func _make_run(ctx: SlideContext, rprs: Array, font_scale: float, default_font: String, style_font_color: Variant = null, style_split: int = -1) -> PresentationModel.TextRun:
 	var run := PresentationModel.TextRun.new()
@@ -631,6 +646,19 @@ static func _first_attr(nodes: Array, attr: String, fallback: String) -> String:
 		if attrs.has(attr):
 			return attrs[attr]
 	return fallback
+
+## The shape's own hyperlink (on <p:cNvPr>), else the first one its text
+## carries - a run-level link is how a bare URL in a bullet is written, and
+## for our purposes it still means "this ledge leads somewhere".
+static func _link_url(node: Dictionary, part: Part) -> String:
+	var c_nv_pr: Dictionary = ZipXmlUtils.find_first(node, "p:cNvPr")
+	var links: Array = ZipXmlUtils.direct_children(c_nv_pr, "a:hlinkClick")
+	links.append_array(ZipXmlUtils.find_all(ZipXmlUtils.find_first(node, "p:txBody"), "a:hlinkClick"))
+	for link in links:
+		var id: String = (link as Dictionary).get("attrs", {}).get("r:id", "")
+		if part.rels.has(id) and part.rels[id]["external"]:
+			return part.rels[id]["target"]
+	return ""
 
 static func _get_shape_id(node: Dictionary) -> String:
 	var attrs: Dictionary = ZipXmlUtils.find_first(node, "p:cNvPr").get("attrs", {})
