@@ -19,6 +19,7 @@ const PANEL_PAD := Vector2(14.0, 8.0)
 const PANEL_GAP: float = 12.0
 ## The player's origin is at its feet, so the prompt clears its head.
 const PLAYER_HEIGHT_PX: float = 74.0
+const MARGIN_PX: float = 10.0
 
 ## [{"rect": Rect2 (world px), "url": String}]
 var targets: Array = []
@@ -74,9 +75,22 @@ func _draw() -> void:
 		Vector2(anchor.x - text_size.x * 0.5 - PANEL_PAD.x,
 			anchor.y - text_size.y - PANEL_PAD.y * 2.0 - PANEL_GAP - PLAYER_HEIGHT_PX),
 		text_size + PANEL_PAD * 2.0)
+	panel.position = _kept_on_screen(panel)
 	draw_rect(panel, PANEL_COLOR)
 	draw_string(font, panel.position + PANEL_PAD + Vector2(0.0, font.get_ascent(FONT_SIZE)),
 		text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, TEXT_COLOR)
+
+## Standing at a link near the edge of the course would otherwise push half
+## the prompt off-screen.
+func _kept_on_screen(panel: Rect2) -> Vector2:
+	var camera: Camera2D = get_viewport().get_camera_2d()
+	if camera == null:
+		return panel.position
+	var view: Vector2 = get_viewport_rect().size / camera.zoom
+	var visible := Rect2(camera.get_screen_center_position() - view * 0.5, view).grow(-MARGIN_PX)
+	return Vector2(
+		clamp(panel.position.x, visible.position.x, max(visible.position.x, visible.end.x - panel.size.x)),
+		clamp(panel.position.y, visible.position.y, max(visible.position.y, visible.end.y - panel.size.y)))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _active < 0 or not event.is_action_pressed("interact"):
