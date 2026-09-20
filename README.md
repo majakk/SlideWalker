@@ -1,6 +1,6 @@
 # SlideWalker
 
-**Present your slides by walking through them.**
+**Present your slides by walking through them as a 2D Platform Game.**
 
 **[⬇ Download the latest release](https://github.com/majakk/SlideWalker/releases/latest)** — Windows, macOS and Linux.
 
