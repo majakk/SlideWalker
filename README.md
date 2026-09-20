@@ -97,6 +97,11 @@ The pixel-art knight is from
 including the two wave frames added for this project.
 Special thanks to Ruken Gül Nazlican who inspired me to test this idea.
 
+## License
+
+SlideWalker's own code is [MIT licensed](LICENSE). The bundled Brackeys knight art keeps its
+separate CC0 license — see the Credits section above.
+
 ---
 
 ♥ If you enjoy this, please [buy the developer a coffee](https://buymeacoffee.com/mattiasjac9)!
