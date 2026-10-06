@@ -61,7 +61,7 @@ static func walkables_from_shapes(manifest: PresentationModel.SlideManifest, sca
 	return out
 
 static func is_platform_shape(shape: PresentationModel.ShapeRect) -> bool:
-	if shape.type == PresentationModel.ShapeRect.Type.LINE:
+	if shape.type == PresentationModel.ShapeRect.Type.LINE or shape.is_table_cell:
 		return false
 	return abs(shape.rotation_deg) <= MAX_PLATFORM_ROTATION_DEG
 

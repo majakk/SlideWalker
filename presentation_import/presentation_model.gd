@@ -54,6 +54,9 @@ class ShapeRect:
 	var position_is_explicit: bool = true
 	## Placeholder type ("title", "body", ...) or "" for regular shapes.
 	var placeholder_type: String = ""
+	## One cell of a TABLE shape, drawn over it. The table itself is the
+	## platform; cells would turn every row boundary into a ledge.
+	var is_table_cell: bool = false
 
 	## Preset geometry name from <a:prstGeom> ("rect", "roundRect", "ellipse", ...).
 	var geometry: String = "rect"
