@@ -7,7 +7,10 @@ extends RefCounted
 ## styles (size/color/bold/bullets/alignment), body properties, backgrounds,
 ## and the decorative non-placeholder shapes on the layout/master.
 ##
-## Remaining scope cuts: tables/charts/SmartArt render as opaque boxes;
+## Tables render as a grid of cells with their own borders, fills and text;
+## table styles (tableStyleId banding/header fills) are not applied.
+##
+## Remaining scope cuts: charts/SmartArt render as opaque boxes;
 ## custom geometry renders as its bounding rectangle.
 
 const ZipXmlUtils = preload("res://presentation_import/zip_xml_utils.gd")
@@ -18,6 +21,12 @@ const EMU_PER_CM: float = 360000.0
 const DEFAULT_FONT_SIZE_PT: float = 18.0
 const TITLE_TYPES := ["title", "ctrTitle"]
 const BODY_TYPES := ["body", "subTitle", "obj"]
+## Border for tables/cells that don't specify one.
+const TABLE_LINE_COLOR := Color(0.6, 0.6, 0.6)
+const TABLE_LINE_WIDTH_CM: float = 0.03
+## OOXML default table cell margins (a:tcPr marL/marR, marT/marB).
+const CELL_MARGIN_LR_EMU: float = 91440.0
+const CELL_MARGIN_TB_EMU: float = 45720.0
 
 ## One XML part (slide, layout or master) with its relationships.
 class Part:
@@ -227,6 +236,8 @@ static func _walk_shape_tree(container: Dictionary, transform: Dictionary, part:
 		var is_line: bool = shape.type == PresentationModel.ShapeRect.Type.LINE and (shape.w > 0.0 or shape.h > 0.0)
 		if has_area or is_line:
 			manifest.shapes.append(shape)
+			if shape.type == PresentationModel.ShapeRect.Type.TABLE:
+				_append_table_cells(child, shape, ctx, manifest)
 
 static func _process_group(node: Dictionary, transform: Dictionary, part: Part, ctx: SlideContext, manifest: PresentationModel.SlideManifest) -> void:
 	var xfrm: Dictionary = ZipXmlUtils.find_first(ZipXmlUtils.find_first(node, "p:grpSpPr"), "a:xfrm")
@@ -283,8 +294,9 @@ static func _process_shape(node: Dictionary, tag: String, ph: Dictionary, transf
 			shape.image_crop = _read_crop(ZipXmlUtils.find_first(blip_fill, "a:srcRect"))
 		"p:graphicFrame":
 			shape.type = PresentationModel.ShapeRect.Type.TABLE
-			shape.line_color = Color(0.6, 0.6, 0.6)
-			shape.line_width_cm = 0.03
+			shape.line_color = TABLE_LINE_COLOR
+			shape.line_width_cm = TABLE_LINE_WIDTH_CM
+			_apply_table_size(shape, node, transform)
 		"p:cxnSp":
 			shape.type = PresentationModel.ShapeRect.Type.LINE
 		_:
@@ -355,6 +367,105 @@ static func _read_crop(src_rect: Dictionary) -> Rect2:
 	var r: float = clamp(float(attrs.get("r", "0")) / 100000.0, 0.0, 1.0)
 	var b: float = clamp(float(attrs.get("b", "0")) / 100000.0, 0.0, 1.0)
 	return Rect2(l, t, max(0.01, 1.0 - l - r), max(0.01, 1.0 - t - b))
+
+# --- tables ---
+
+## The frame's <p:xfrm> extent is unreliable for tables (Google Slides
+## writes a fixed 3000000x3000000 placeholder), while PowerPoint lays a table
+## out from its grid column widths and row heights - so size it the same way.
+static func _apply_table_size(shape: PresentationModel.ShapeRect, node: Dictionary, transform: Dictionary) -> void:
+	var grid: Dictionary = _table_grid(ZipXmlUtils.find_first(node, "a:tbl"))
+	var col_x: Array = grid["col_x"]
+	var row_y: Array = grid["row_y"]
+	if col_x.back() <= 0.0 or row_y.back() <= 0.0:
+		return
+	var scale: Vector2 = transform["scale"]
+	shape.w = col_x.back() * scale.x
+	shape.h = row_y.back() * scale.y
+
+## Column/row start offsets in cm, each with a trailing entry for the far
+## edge, so a span from i to j is offsets[j] - offsets[i].
+static func _table_grid(tbl: Dictionary) -> Dictionary:
+	var col_x: Array = [0.0]
+	for col in ZipXmlUtils.direct_children(ZipXmlUtils.find_first(tbl, "a:tblGrid"), "a:gridCol"):
+		col_x.append(col_x.back() + float(col.get("attrs", {}).get("w", "0")) / EMU_PER_CM)
+	var row_y: Array = [0.0]
+	for tr in ZipXmlUtils.direct_children(tbl, "a:tr"):
+		row_y.append(row_y.back() + float(tr.get("attrs", {}).get("h", "0")) / EMU_PER_CM)
+	return {"col_x": col_x, "row_y": row_y}
+
+## Emits one shape per visible cell, laid over the table's frame. Merged-away
+## cells (hMerge/vMerge) are covered by their gridSpan/rowSpan origin cell.
+static func _append_table_cells(node: Dictionary, table: PresentationModel.ShapeRect, ctx: SlideContext, manifest: PresentationModel.SlideManifest) -> void:
+	var tbl: Dictionary = ZipXmlUtils.find_first(node, "a:tbl")
+	var grid: Dictionary = _table_grid(tbl)
+	var col_x: Array = grid["col_x"]
+	var row_y: Array = grid["row_y"]
+	if col_x.back() <= 0.0 or row_y.back() <= 0.0:
+		return
+	var scale := Vector2(table.w / col_x.back(), table.h / row_y.back())
+	var n_cols: int = col_x.size() - 1
+	var n_rows: int = row_y.size() - 1
+	var trs: Array = ZipXmlUtils.direct_children(tbl, "a:tr")
+	for r in range(trs.size()):
+		var tcs: Array = ZipXmlUtils.direct_children(trs[r], "a:tc")
+		for c in range(min(tcs.size(), n_cols)):
+			var attrs: Dictionary = tcs[c].get("attrs", {})
+			if attrs.get("hMerge", "0") in ["1", "true"] or attrs.get("vMerge", "0") in ["1", "true"]:
+				continue
+			var c_end: int = min(c + max(1, int(attrs.get("gridSpan", "1"))), n_cols)
+			var r_end: int = min(r + max(1, int(attrs.get("rowSpan", "1"))), n_rows)
+			var cell: PresentationModel.ShapeRect = _table_cell(tcs[c], ctx)
+			cell.id = "%s:%d,%d" % [table.id, r, c]
+			cell.z_order = ctx.z_counter
+			ctx.z_counter += 1
+			cell.x = table.x + col_x[c] * scale.x
+			cell.y = table.y + row_y[r] * scale.y
+			cell.w = (col_x[c_end] - col_x[c]) * scale.x
+			cell.h = (row_y[r_end] - row_y[r]) * scale.y
+			manifest.shapes.append(cell)
+			# The cells draw the grid now, including the outer edge.
+			table.line_color = Color(0, 0, 0, 0)
+
+static func _table_cell(tc: Dictionary, ctx: SlideContext) -> PresentationModel.ShapeRect:
+	var cell := PresentationModel.ShapeRect.new()
+	cell.is_table_cell = true
+	var tc_pr: Dictionary = ZipXmlUtils.find_first(tc, "a:tcPr")
+	var fill = _fill_color(ctx, [tc_pr])
+	if fill != null:
+		cell.fill_color = fill
+	_apply_cell_border(cell, tc_pr, ctx)
+	_apply_text(cell, tc, {}, {}, {}, ctx)
+	# Cell margins live on tcPr, not on the cell's (normally empty) bodyPr.
+	var attrs: Dictionary = tc_pr.get("attrs", {})
+	cell.text_insets = Vector4(
+		float(attrs.get("marL", str(CELL_MARGIN_LR_EMU))) / EMU_PER_CM,
+		float(attrs.get("marT", str(CELL_MARGIN_TB_EMU))) / EMU_PER_CM,
+		float(attrs.get("marR", str(CELL_MARGIN_LR_EMU))) / EMU_PER_CM,
+		float(attrs.get("marB", str(CELL_MARGIN_TB_EMU))) / EMU_PER_CM)
+	cell.text_anchor = attrs.get("anchor", "t")
+	cell.type = PresentationModel.ShapeRect.Type.TEXT if cell.has_visible_text() \
+		else PresentationModel.ShapeRect.Type.SHAPE
+	return cell
+
+## ShapeRect carries a single outline, so the first visible edge of
+## lnL/lnR/lnT/lnB stands in for all four. No edges at all gets the default
+## table border; edges that are all noFill get none.
+static func _apply_cell_border(cell: PresentationModel.ShapeRect, tc_pr: Dictionary, ctx: SlideContext) -> void:
+	var declared := false
+	for edge in ["a:lnL", "a:lnR", "a:lnT", "a:lnB"]:
+		var ln: Dictionary = ZipXmlUtils.find_first(tc_pr, edge)
+		if ln.is_empty():
+			continue
+		declared = true
+		var c = ctx.theme.color_in(ZipXmlUtils.find_first(ln, "a:solidFill"))
+		if c != null:
+			cell.line_color = c
+			cell.line_width_cm = float(ln.get("attrs", {}).get("w", "12700")) / EMU_PER_CM
+			return
+	if not declared:
+		cell.line_color = TABLE_LINE_COLOR
+		cell.line_width_cm = TABLE_LINE_WIDTH_CM
 
 # --- fills and lines ---
 
@@ -455,6 +566,9 @@ static func _master_type(ph_type: String) -> String:
 ## master/presentation text styles but not the shape's own formatting.
 static func _apply_text(shape: PresentationModel.ShapeRect, node: Dictionary, ph: Dictionary, layout_ph: Dictionary, master_ph: Dictionary, ctx: SlideContext, style_font_color: Variant = null) -> void:
 	var tx_body: Dictionary = ZipXmlUtils.find_first(node, "p:txBody")
+	if tx_body.is_empty():
+		# Table cells (<a:tc>) carry their text in <a:txBody>.
+		tx_body = ZipXmlUtils.find_first(node, "a:txBody")
 	if tx_body.is_empty():
 		return
 
